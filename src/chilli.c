@@ -7253,7 +7253,7 @@ int chilli_main(int argc, char **argv) {
   int keep_going = 1;
   int reload_config = 0;
 
-  int syslog_options = LOG_PID;
+  int syslog_options = 0;
   int syslog_debug_options = 0;
   char *syslog_ident = NULL;
 
