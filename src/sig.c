@@ -25,7 +25,10 @@ static int selfpipe[2] = { -1, -1 };
 static void _trigger (int s) {
   char c = (char)s;
   /*log_dbg("PID %d SIG Trigger %d", getpid(), s);*/
-  safe_write(selfpipe[1], &c, 1);
+
+  if (selfpipe[1] > 0) {
+    safe_write(selfpipe[1], &c, 1);
+  }
 }
 
 static void _ignore (int s) {
