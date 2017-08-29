@@ -1313,6 +1313,12 @@ int radius_new(struct radius_t **this,
          inet_ntoa(new_radius->ouraddr),
          new_radius->ourport);
 
+  int on = 1;
+
+  if (setsockopt(new_radius->fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+    syslog(LOG_ERR, "%s: Can't set reuse option", strerror(errno));
+  }
+
   if (bind(new_radius->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
     syslog(LOG_ERR, "%s: bind() failed!", strerror(errno));
     close(new_radius->fd);
