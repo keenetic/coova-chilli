@@ -5362,10 +5362,13 @@ int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
                         (int) (appconn->s_state.bucketup * 100 /
                                appconn->s_state.bucketupsize),
                         appconn->s_params.bandwidthmaxup);
-          bconcat(b, tmp);
         } else
 #endif
-          bcatcstr(b, " 0/0");
+        {
+          bassignformat(tmp, " 0%%/%lld",
+                        appconn->s_params.bandwidthmaxup);
+        }
+        bconcat(b, tmp);
 
 #ifdef ENABLE_LEAKYBUCKET
         if (appconn->s_state.bucketdownsize) {
@@ -5373,15 +5376,19 @@ int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
                         (int) (appconn->s_state.bucketdown * 100 /
                                appconn->s_state.bucketdownsize),
                         appconn->s_params.bandwidthmaxdown);
-          bconcat(b, tmp);
         } else
 #endif
-          bcatcstr(b, " 0/0 ");
-
+        {
+          bassignformat(tmp, " 0%%/%lld ",
+                        appconn->s_params.bandwidthmaxdown);
+        }
+        bconcat(b, tmp);
+#if 0
         /* adding: original url */
         if (appconn->s_state.redir.userurl[0])
           bcatcstr(b, appconn->s_state.redir.userurl);
         else
+#endif
           bcatcstr(b, "-");
 
 #ifdef ENABLE_IEEE8021Q
