@@ -1239,6 +1239,7 @@ int net_open_eth(net_interface *netif) {
   struct ifreq ifr;
   struct sockaddr_ll sa;
   int option;
+  socklen_t len;
 
   memset(&ifr, 0, sizeof(ifr));
 
@@ -1278,20 +1279,31 @@ int net_open_eth(net_interface *netif) {
     if (_options.sndbuf > 0) {
       option = _options.sndbuf;
       net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
+    } else {
+      len = sizeof(default_sndbuf);
+      getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
+
+      option = (int)(default_sndbuf * 1.1);
+      net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
     }
 
     if (_options.rcvbuf > 0) {
       option = _options.rcvbuf;
       net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
+    } else {
+      len = sizeof(default_rcvbuf);
+      getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
+
+      option = (int)(default_rcvbuf * 1.1);
+      net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
     }
 
     {
-      socklen_t len;
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
       if (_options.debug)
         syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
-      len = sizeof(default_sndbuf);
+      len = sizeof(default_rcvbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
       if (_options.debug)
         syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
