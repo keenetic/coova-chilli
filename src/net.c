@@ -1283,7 +1283,7 @@ int net_open_eth(net_interface *netif) {
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
 
-      option = (int)(default_sndbuf * 1.1);
+      option = (int)(default_sndbuf * 2);
       net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
     }
 
@@ -1294,7 +1294,7 @@ int net_open_eth(net_interface *netif) {
       len = sizeof(default_rcvbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
 
-      option = (int)(default_rcvbuf * 1.1);
+      option = (int)(default_rcvbuf * 2);
       net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
     }
 
