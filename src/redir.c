@@ -3356,14 +3356,17 @@ int redir_main(struct redir_t *redir,
   }
 
 #define redir_memcopy(msgtype)                                          \
+do { \
   redir_challenge(challenge);                                           \
   redir_chartohex(challenge, hexchal, REDIR_MD5LEN);                    \
   msg.mtype = msgtype;                                                  \
   memcpy(conn.s_state.redir.uamchal, challenge, REDIR_MD5LEN);          \
-  if (_options.debug) syslog(LOG_DEBUG, "---->>> resetting challenge: %s", hexchal)
+  if (_options.debug) syslog(LOG_DEBUG, "---->>> resetting challenge: %s", hexchal); \
+} while (0)
 
 #ifdef USING_IPC_UNIX
 #define redir_msg_send(msgopt)                                          \
+do { \
   msg.mdata.opt = msgopt;                                               \
   memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address));       \
   memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress));    \
@@ -3373,9 +3376,11 @@ int redir_main(struct redir_t *redir,
     syslog(LOG_ERR, "%s: write() failed! msgfd=%d type=%ld len=%d",     \
            strerror(errno), redir->msgfd, msg.mtype, (int)sizeof(msg.mdata)); \
     return redir_main_exit(&socket, forked, rreq);                      \
-  }
+  }                                                                     \
+} while (0)
 #else
 #define redir_msg_send(msgopt)                                          \
+do { \
   msg.mdata.opt = msgopt;                                               \
   memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address));       \
   memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress));    \
@@ -3385,7 +3390,8 @@ int redir_main(struct redir_t *redir,
     syslog(LOG_ERR, "%s: msgsnd() failed! msgid=%d type=%ld len=%d",    \
            strerror(errno), redir->msgid, msg.mtype, (int)sizeof(msg.mdata)); \
     return redir_main_exit(&socket, forked, rreq);                      \
-  }
+  }                                                                     \
+} while (0)
 #endif
 
   /*
