@@ -583,9 +583,6 @@ int tuntap_interface(struct _net_interface *netif) {
 #ifdef IFF_BROADCAST
       | IFF_BROADCAST
 #endif
-#ifdef IFF_PROMISC
-      | IFF_PROMISC
-#endif
 #ifdef IFF_ONE_QUEUE
       | IFF_ONE_QUEUE
 #endif
