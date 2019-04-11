@@ -38,6 +38,7 @@ static const char *copyright =
 static const char *usage =
     "Usage: chilli [OPTIONS]...\n";
 
+#if 0
 static const char *compile_options = "Compiled with "
 #ifdef ENABLE_DEBUG
     "ENABLE_DEBUG "
@@ -262,6 +263,7 @@ static const char *compile_options = "Compiled with "
 #include EX_OPT_FEATURES
 #endif
     ;
+#endif
 
 char *STRDUP(char *s) {
   if (!s) return 0;
@@ -294,7 +296,7 @@ options_print_help (void) {
   options_print_version();
   printf("\n%s", description);
   printf("\n%s\n", usage);
-  printf("\n%s\n", compile_options);
+  /*printf("\n%s\n", compile_options);*/
   printf("\n%s\n", copyright);
 }
 
@@ -319,7 +321,7 @@ options_print_help (void) {
   while (gengetopt_args_info_help[i])
     printf("%s\n", gengetopt_args_info_help[i++]);
 
-  printf("\n%s\n", compile_options);
+  /*printf("\n%s\n", compile_options);*/
 
   printf("\n%s\n", copyright);
 }

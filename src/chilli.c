@@ -7022,7 +7022,7 @@ static int cmdsock_accept(void *nullData, int sock) {
   int csock;
   int rval = 0;
 
-#if(_debug_)
+#if(_debug_ > 1)
   if (_options.debug)
     syslog(LOG_DEBUG, "Processing cmdsock request...");
 #endif
@@ -7240,11 +7240,11 @@ int chilli_main(int argc, char **argv) {
 
   int syslog_options = 0;
   int syslog_debug_options = 0;
-
+/*
 #ifdef LOG_PERROR
   syslog_debug_options = LOG_PERROR;
 #endif
-
+*/
   /* Start out also logging to stderr until we load options. */
   openlog(PACKAGE, syslog_options|syslog_debug_options, LOG_DAEMON);
 
