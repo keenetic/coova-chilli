@@ -3756,8 +3756,10 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
    */
   if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
 
+#if(_debug_)
     if (_options.debug)
       syslog(LOG_DEBUG, "%s(%d): Address found", __FUNCTION__, __LINE__);
+#endif
 
     ourip.s_addr = conn->ourip.s_addr;
 
@@ -6142,8 +6144,10 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
 
   /* Check to see if we know MAC address. */
   if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
+#if(_debug_)
     if (_options.debug)
       syslog(LOG_DEBUG, "%s(%d): Address found", __FUNCTION__, __LINE__);
+#endif
   }
   else {
     if (_options.debug)

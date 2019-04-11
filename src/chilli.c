@@ -7044,7 +7044,7 @@ static int cmdsock_accept(void *nullData, int sock) {
   int csock;
   int rval = 0;
 
-#if(_debug_)
+#if(_debug_ > 1)
   if (_options.debug)
     syslog(LOG_DEBUG, "%s(%d): Processing cmdsock request...", __FUNCTION__, __LINE__);
 #endif
@@ -7265,7 +7265,7 @@ int chilli_main(int argc, char **argv) {
   char *syslog_ident = NULL;
 
 #ifdef LOG_PERROR
-  syslog_debug_options = LOG_PERROR;
+  /*syslog_debug_options = LOG_PERROR;*/
 #endif
 
   syslog_ident = basename(argv[0]);
@@ -7408,13 +7408,13 @@ int chilli_main(int argc, char **argv) {
 #ifdef ENABLE_SSDP
     ssdp.s_addr = inet_addr(SSDP_MCAST_ADDR);
 #endif
-
+/*
     syslog(LOG_INFO, "CoovaChilli %s. "
            "Copyright 2002-2005 Mondru AB. Licensed under GPL. "
            "Copyright 2006-2012 David Bird (Coova Technologies). "
            "Licensed under GPL. "
            "See http://coova.github.io/ for details.", VERSION);
-
+*/
     memset(&sctx, 0, sizeof(sctx));
 
 #ifdef HAVE_LIBRT
@@ -7832,7 +7832,7 @@ int chilli_main(int argc, char **argv) {
 
     } /* while(keep_going) */
 
-    syslog(LOG_INFO, "CoovaChilli shutting down");
+    /* syslog(LOG_INFO, "CoovaChilli shutting down"); */
 
     if (_options.seskeepalive) {
 #ifdef ENABLE_BINSTATFILE

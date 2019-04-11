@@ -26,6 +26,7 @@
 
 struct options_t _options;
 
+#if 0
 static const char *description =
     "CoovaChilli - A Wireless LAN Access Point Controller.\n"
     "  For more information on this project, visit: \n"
@@ -34,10 +35,12 @@ static const char *description =
 static const char *copyright =
     "2006-2013 David Bird (Coova Technologies), Copyright (c) 2003-2005 Mondru AB.\n"
     "Licensed under the GNU General Public License (GPL).\n";
+#endif
 
 static const char *usage =
     "Usage: chilli [OPTIONS]...\n";
 
+#if 0
 static const char *compile_options = "Compiled with "
 #ifdef ENABLE_DEBUG
     "ENABLE_DEBUG "
@@ -259,6 +262,7 @@ static const char *compile_options = "Compiled with "
 #include EX_OPT_FEATURES
 #endif
     ;
+#endif
 
 char *STRDUP(char *s) {
   if (!s) return 0;
@@ -289,10 +293,10 @@ options_print_version (void) {
 static void
 options_print_help (void) {
   options_print_version();
-  printf("\n%s", description);
+  /*printf("\n%s", description);*/
   printf("\n%s\n", usage);
-  printf("\n%s\n", compile_options);
-  printf("\n%s\n", copyright);
+  /*printf("\n%s\n", compile_options);*/
+  /*printf("\n%s\n", copyright);*/
 }
 
 #else
@@ -310,15 +314,15 @@ options_print_help (void) {
 
   options_print_version();
 
-  printf("\n%s", description);
+  /*printf("\n%s", description);*/
   printf("\n%s\n", usage);
 
   while (gengetopt_args_info_help[i])
     printf("%s\n", gengetopt_args_info_help[i++]);
 
-  printf("\n%s\n", compile_options);
+  /*printf("\n%s\n", compile_options);*/
 
-  printf("\n%s\n", copyright);
+  /*printf("\n%s\n", copyright);*/
 }
 
 #endif
@@ -330,6 +334,8 @@ int main(int argc, char **argv) {
   int numargs;
   int ret = -1;
   int i;
+
+  openlog(basename(argv[0]), 0, LOG_DAEMON);
 
   options_init();
 
@@ -408,6 +414,10 @@ int main(int argc, char **argv) {
   _options.dhcpstart = args_info.dhcpstart_arg;
   _options.dhcpend = args_info.dhcpend_arg;
   _options.eapolenable = args_info.eapolenable_flag;
+
+  if (!_options.debug)
+    setlogmask(LOG_UPTO(_options.loglevel));
+
 #if(_debug_ && !defined(ENABLE_EAPOL))
   if (_options.eapolenable)
     syslog(LOG_WARNING, "EAPOL not implemented. build with --enable-eapol");
