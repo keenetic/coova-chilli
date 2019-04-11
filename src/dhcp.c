@@ -3194,6 +3194,11 @@ static int dhcp_accept_opt(struct dhcp_conn_t *conn, uint8_t *o, int pos) {
     o[pos++] = 4;
     memcpy(&o[pos], &conn->dns2.s_addr, 4);
     pos += 4;
+  } else {
+    o[pos++] = DHCP_OPTION_DNS;
+    o[pos++] = 4;
+    memcpy(&o[pos], &conn->ourip.s_addr, 4);
+    pos += 4;
   }
 
   if (strlen(conn->domain)) {
