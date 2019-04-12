@@ -1026,7 +1026,7 @@ int main(int argc, char **argv) {
     _options.dns1 = _res.nsaddr_list[0].sin_addr;
   }
   else {
-    _options.dns1.s_addr = 0;
+    _options.dns1.s_addr = _options.uamlisten.s_addr;
   }
 
   if (args_info.dns2_arg) {
