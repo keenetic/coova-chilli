@@ -29,7 +29,7 @@
                       +(uint32_t)(((const uint8_t *)(d))[0]) )
 #endif
 
-uint32_t SuperFastHash (const char * data, int len, uint32_t hash) {
+uint32_t SuperFastHash (const uint8_t * data, size_t len, uint32_t hash) {
   uint32_t tmp;
   int rem;
 
