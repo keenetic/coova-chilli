@@ -1963,7 +1963,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
   char forked = (rreq == 0);
 
-  char wblock = 0, done = 0, eoh = 0;
+  char wblock = 0, done = 0, eoh = 0, is_urlencoded = 0;
 
   memset(buffer, 0, sizeof(buffer));
 
@@ -2102,7 +2102,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       return -1;
     }
 
-    while ((eol = strstr(buffer, "\r\n"))) {
+    while (!eoh && (eol = strstr(buffer, "\r\n"))) {
       size_t linelen = eol - buffer;
       *eol = 0;
 
@@ -2213,9 +2213,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
         if (_options.debug)
           syslog(LOG_DEBUG, "%s(%d): end of http-request", __FUNCTION__, __LINE__);
 #endif
-	done = 1;
 	eoh = 1;
-	break;
+
+	if (!httpreq->is_post || httpreq->clen == 0 || !is_urlencoded) {
+		done = 1;
+		break;
+	}
       } else {
 	/* headers */
 	char *p;
@@ -2273,6 +2276,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
             syslog(LOG_DEBUG, "%s(%d): Cookie: %s", __FUNCTION__, __LINE__, conn->httpcookie);
 #endif
 	}
+	else if (!strncasecmp(buffer,"Content-Type:",13)) {
+	  p = buffer + 13;
+	  while (*p && isspace((int) *p)) p++;
+	  if (!strcasecmp(p,"application/x-www-form-urlencoded"))
+	    is_urlencoded = 1;
+	}
       }
 
       /* shift buffer */
@@ -2284,7 +2293,30 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       buflen -= linelen;
     }
 
-    if (!forked && !eoh && wblock) {
+	if (eoh && !done) {
+		if (httpreq->clen > REDIR_USERURLSIZE)
+		{
+#if(_debug_ > 1)
+			syslog(LOG_ERR, "payload %d is too big", httpreq->clen);
+#endif
+			done = 1;
+			break;
+		}
+
+		if (buflen < httpreq->clen)
+		{
+			continue;
+		}
+
+		if (httpreq->is_post && httpreq->clen > 0)
+		{
+			strlcpy(httpreq->qs, buffer, sizeof(httpreq->qs));
+
+			done = 1;
+		}
+	}
+
+    if (!forked && !done && wblock) {
 #if(_debug_ > 1)
       if (_options.debug)
         syslog(LOG_DEBUG, "%s(%d): Didn't see end of headers, continue...", __FUNCTION__, __LINE__);
