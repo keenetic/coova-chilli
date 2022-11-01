@@ -117,6 +117,9 @@ int main(int argc, char **argv) {
     uint8_t p[RADIUS_PWSIZE + 1];
     int m, n, plen = strlen(argv[idx+3]);
 
+    if (plen > RADIUS_PWSIZE)
+      return usage(argv[0]);
+
     memset(p, 0, sizeof(p));
     strlcpy((char *)p, argv[idx+3], RADIUS_PWSIZE);
 
