@@ -23,6 +23,7 @@
 /*#define _DEBUG_PRINT_ 1*/
 
 const unsigned int IPPOOL_STATSIZE = 0x10000;
+const unsigned int IPPOOL_DYNSIZE = 0x10000;
 
 int ippool_print(int fd, struct ippool_t *this) {
   int n;
@@ -286,6 +287,9 @@ int ippool_new(struct ippool_t **this,
 
       dynsize--;/* no uamlisten */
     }
+
+    if (dynsize > IPPOOL_DYNSIZE)
+      dynsize = IPPOOL_DYNSIZE;
   }
 
   if (!allowstat) {
