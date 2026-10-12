@@ -4565,14 +4565,22 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
 			  RADIUS_VENDOR_COOVACHILLI,
 			  RADIUS_ATTR_COOVACHILLI_DHCP_SERVER_NAME, 0)) {
-	memcpy(dhcpconn->dhcp_opts.sname, attr->v.t, attr->l-2);
+	size_t n = attr->l-2;
+	if (n > sizeof(dhcpconn->dhcp_opts.sname) - 1)
+	  n = sizeof(dhcpconn->dhcp_opts.sname) - 1;
+	memset(dhcpconn->dhcp_opts.sname, 0, sizeof(dhcpconn->dhcp_opts.sname));
+	memcpy(dhcpconn->dhcp_opts.sname, attr->v.t, n);
       }
 
       if (!radius_getattr(pack, &attr,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
 			  RADIUS_VENDOR_COOVACHILLI,
 			  RADIUS_ATTR_COOVACHILLI_DHCP_FILENAME, 0)) {
-	memcpy(dhcpconn->dhcp_opts.file, attr->v.t, attr->l-2);
+	size_t n = attr->l-2;
+	if (n > sizeof(dhcpconn->dhcp_opts.file) - 1)
+	  n = sizeof(dhcpconn->dhcp_opts.file) - 1;
+	memset(dhcpconn->dhcp_opts.file, 0, sizeof(dhcpconn->dhcp_opts.file));
+	memcpy(dhcpconn->dhcp_opts.file, attr->v.t, n);
       }
 
       if (!radius_getattr(pack, &attr,
