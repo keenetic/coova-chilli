@@ -3730,7 +3730,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
   return 0;
 }
 
-int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack);
+int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack, size_t len);
 int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len);
 
 /**
@@ -5360,7 +5360,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 #ifdef ENABLE_EAPOL
     case PKT_ETH_PROTO_EAPOL:
       if (!ignore && _options.eapolenable)
-        return dhcp_receive_eapol(ctx, packet);
+        return dhcp_receive_eapol(ctx, packet, length);
       break;
 #endif
 
@@ -6167,7 +6167,7 @@ int dhcp_sendEAPreject(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
 }
 
-int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
+int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct dhcp_t *this = ctx->parent;
   struct dhcp_conn_t *conn = NULL;
   unsigned char const amac[PKT_ETH_ALEN] =
@@ -6175,6 +6175,9 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
 
   struct pkt_ethhdr_t *pack_ethh = pkt_ethhdr(pack);
   struct pkt_dot1xhdr_t *pack_dot1x = pkt_dot1xhdr(pack);
+
+  if (len < sizeofdot1x(pack))
+    return 0;
 
   /* Check to see if we know MAC address. */
   if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
@@ -6246,6 +6249,7 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
     return 0;
   }
   else if (pack_dot1x->type == 0) { /* EAP */
+    size_t eaplen;
 
     /* TODO: Currently we only support authentications starting with a
        client sending a EAPOL start message. Need to also support
@@ -6253,11 +6257,24 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
     if (!conn)
       return 0;
 
+    /* EAP header must be present and the EAP length must fit
+       both the 802.1x body and the received frame */
+    if (len < sizeofdot1x(pack) + 4)
+      return 0;
+
+    eaplen = ntohs(pkt_eappkt(pack)->length);
+    if (eaplen < 4 ||
+        eaplen > ntohs(pack_dot1x->len) ||
+        eaplen > len - sizeofdot1x(pack)) {
+      if (_options.debug)
+        syslog(LOG_DEBUG, "%s(%d): bad EAP length %zu", __FUNCTION__, __LINE__, eaplen);
+      return 0;
+    }
+
     conn->lasttime = mainclock_now();
 
     if (this->cb_eap_ind)
-      this->cb_eap_ind(conn, (uint8_t *)pkt_eappkt(pack),
-		       ntohs(pkt_eappkt(pack)->length));
+      this->cb_eap_ind(conn, (uint8_t *)pkt_eappkt(pack), eaplen);
 
     return 0;
   }
@@ -6292,7 +6309,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
   }
 #endif
 
-  return dhcp_receive_eapol(&ctx, packet);
+  return dhcp_receive_eapol(&ctx, packet, length);
 }
 
 int dhcp_set_cb_eap_ind(struct dhcp_t *this,
