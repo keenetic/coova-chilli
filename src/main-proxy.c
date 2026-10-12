@@ -222,7 +222,7 @@ static int http_aaa_finish(proxy_request *req) {
   conn_close(&req->conn);
 #endif
 
-  if (req->data && req->data->slen) {
+  if (req->data && req->data->slen >= 7) {
 #if(_debug_)
     syslog(LOG_DEBUG, "Received: %s\n",req->data->data);
 #endif
@@ -733,19 +733,34 @@ static void http_aaa_register(int argc, char **argv, int i) {
   exit(0);
 }
 
-static void process_radius(struct radius_t *radius, struct radius_packet_t *pack, struct sockaddr_in *peer) {
+static void process_radius(struct radius_t *radius, struct radius_packet_t *pack,
+                           size_t len, struct sockaddr_in *peer) {
   struct radius_attr_t *attr = NULL;
   char *error = 0;
 
-  proxy_request *req = get_request();
+  proxy_request *req;
 
   bstring tmp;
   bstring tmp2;
 
+  /* The RADIUS length field must be sane and covered by the datagram */
+  if (len < RADIUS_HDRSIZE ||
+      ntohs(pack->length) < RADIUS_HDRSIZE ||
+      ntohs(pack->length) > len) {
+    syslog(LOG_ERR, "dropping RADIUS packet with bad length %d (received %zu)",
+           ntohs(pack->length), len);
+    return;
+  }
+
+  req = get_request();
+
   if (!req) return;
+
+  req->radius = radius;
 
   if (!_options.uamaaaurl) {
     syslog(LOG_ERR, "No --uamaaaurl parameter defined");
+    close_request(req);
     return;
   }
 
@@ -839,7 +854,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 			   radius->secret,
 			   radius->secretlen)) {
 	bcatcstr(req->url, "&pass=");
-	bassignblk(tmp, pwd, strlen(pwd));
+	/* decoded password is NUL padded, not terminated */
+	bassignblk(tmp, pwd, strnlen(pwd, pwdlen));
 	redir_urlencode(tmp, tmp2);
 	bconcat(req->url, tmp2);
       }
@@ -1039,6 +1055,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
   } else {
     syslog(LOG_ERR, "problem: %s", error);
+    close_request(req);
   }
 
   bdestroy(tmp);
@@ -1232,7 +1249,7 @@ int main(int argc, char **argv) {
               return -1;
             }
 
-            process_radius(radius_auth, &radius_pack, &addr);
+            process_radius(radius_auth, &radius_pack, status, &addr);
           }
 
           if (FD_ISSET(radius_acct->fd, &fdread)) {
@@ -1251,7 +1268,7 @@ int main(int argc, char **argv) {
               return -1;
             }
 
-            process_radius(radius_acct, &radius_pack, &addr);
+            process_radius(radius_acct, &radius_pack, status, &addr);
           }
         }
 
