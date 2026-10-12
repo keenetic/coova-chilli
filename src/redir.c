@@ -361,14 +361,17 @@ static int base64decoder (char * eapstr, struct eapmsg_t * eapmsg)
 
   eapmsg->len = 0;       /* To avoid invalid data if decoding fails */
 
-  if ((len_in % 4) != 0)
+  if (len_in == 0 || (len_in % 4) != 0)
     return 2;
 
   /* Remove all trailing '=' characters */
-  while (eapstr [len_in-1] == '='){
+  while (len_in > 0 && eapstr [len_in-1] == '='){
     eapstr [len_in-1] = 0;
     len_in--;
   }
+
+  if (len_in == 0)
+    return 2;
 
   len_out = (len_in*3) / 4;
 
@@ -398,7 +401,8 @@ static int base64decoder (char * eapstr, struct eapmsg_t * eapmsg)
     }
 
 
-    eapmsg->data[x_out++] = (in64[0] << 2) | (in64[1] >> 4);
+    if (x_out < len_out)
+      eapmsg->data[x_out++] = (in64[0] << 2) | (in64[1] >> 4);
     if (x_out < len_out)
       eapmsg->data[x_out++] = (in64[1] << 4) | (in64[2] >> 2);
     if (x_out < len_out)
