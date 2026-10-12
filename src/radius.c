@@ -882,9 +882,15 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
                    uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
                    int instance, size_t *roffset) {
   struct radius_attr_t *t;
-  size_t len = ntohs(pack->length) - RADIUS_HDRSIZE;
+  size_t len;
   size_t offset = *roffset;
   int count = 0;
+
+  if (ntohs(pack->length) < RADIUS_HDRSIZE ||
+      ntohs(pack->length) > RADIUS_PACKSIZE)
+    return -1;
+
+  len = ntohs(pack->length) - RADIUS_HDRSIZE;
 
   /*
     if (0) {
@@ -904,17 +910,26 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
       }
     */
 
-    offset += t->l;
-
-    if (t->t == 0 || t->l < 2)
+    /* The attribute header and body must lie within the packet */
+    if (offset + 2 > len)
       return -1;
+
+    if (t->t == 0 || t->l < 2 || offset + t->l > len)
+      return -1;
+
+    offset += t->l;
 
     if (t->t != type)
       continue;
 
-    if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && vendor_id &&
-	(ntohl(t->v.vv.i) != vendor_id || t->v.vv.t != vendor_type))
-      continue;
+    if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && vendor_id) {
+      /* vendor id (4), sub-type (1), sub-length (1); the sub-attribute
+         must have a valid length and fit within the outer attribute */
+      if (t->l < 8 || t->v.vv.l < 2 || t->v.vv.l > t->l - 6)
+        continue;
+      if (ntohl(t->v.vv.i) != vendor_id || t->v.vv.t != vendor_type)
+        continue;
+    }
 
     if (count == instance) {
 

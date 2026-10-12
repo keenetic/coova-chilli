@@ -3579,6 +3579,7 @@ int access_request(struct radius_packet_t *pack,
       syslog(LOG_ERR, "radius_pwdecode() failed");
       return -1;
     }
+    pwd[pwdlen] = 0; /* pwdlen <= 240 < RADIUS_ATTR_VLEN */
 #if(_debug_)
     if (_options.debug)
       syslog(LOG_DEBUG, "%s(%d): Password is: %s", __FUNCTION__, __LINE__, pwd);
