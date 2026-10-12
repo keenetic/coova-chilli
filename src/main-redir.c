@@ -78,6 +78,11 @@ static redir_request * get_request() {
     max_requests = 2048; /* hard maximum! (should be configurable) */
 
     requests = (redir_request *) calloc(max_requests, sizeof(redir_request));
+    if (!requests) {
+      syslog(LOG_ERR, "%s: calloc() failed", strerror(errno));
+      max_requests = 0;
+      return 0;
+    }
     for (i=0; i < max_requests; i++) {
       requests[i].index = i;
       if (i > 0)
@@ -752,6 +757,11 @@ int redir_accept2(struct redir_t *redir, int idx) {
   } else {
 
     redir_request *req = get_request();
+
+    if (!req) {
+      close(new_socket);
+      return 0;
+    }
 
     req->parent = redir;
 
