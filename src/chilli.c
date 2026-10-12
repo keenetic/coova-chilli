@@ -6855,6 +6855,11 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     case CMDSOCK_ROUTE_SET:
     case CMDSOCK_ROUTE_GW:
       {
+        if (req->d.sess.params.routeidx >= tun->_interface_count) {
+          syslog(LOG_ERR, "%s(%d): invalid route idx %d", __FUNCTION__, __LINE__,
+                 req->d.sess.params.routeidx);
+          break;
+        }
         if (req->type == CMDSOCK_ROUTE_GW) {
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): setting route for idx %d", __FUNCTION__, __LINE__, req->d.sess.params.routeidx);
@@ -6944,6 +6949,16 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 
           memcpy(&appconn->s_params, &req->d.sess.params,
                  sizeof(req->d.sess.params));
+
+          /* Counters and indexes from the request are not trusted */
+#ifdef ENABLE_SESSGARDEN
+          if (appconn->s_params.pass_through_count > SESSION_PASS_THROUGH_MAX)
+            appconn->s_params.pass_through_count = SESSION_PASS_THROUGH_MAX;
+#endif
+#ifdef ENABLE_MULTIROUTE
+          if (appconn->s_params.routeidx >= tun->_interface_count)
+            appconn->s_params.routeidx = 0;
+#endif
 
           if (uname[0])
             strlcpy(appconn->s_state.redir.username,
