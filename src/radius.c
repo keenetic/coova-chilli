@@ -855,6 +855,10 @@ radius_addvsa(struct radius_packet_t *pack, struct redir_state *state) {
   if (state->vsalen) {
     uint16_t length = ntohs(pack->length);
     void *m = (void *) pack + (size_t) length;
+    if ((size_t) length + state->vsalen > RADIUS_PACKSIZE) {
+      syslog(LOG_ERR, "No more space for VSA (%d + %d)", length, (int) state->vsalen);
+      return -1;
+    }
     memcpy(m, state->vsa, state->vsalen);
     length += state->vsalen;
     pack->length = htons(length);
