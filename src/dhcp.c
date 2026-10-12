@@ -6132,6 +6132,12 @@ int dhcp_sendEAP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct pkt_ethhdr_t *packet_ethh;
   struct pkt_dot1xhdr_t *packet_dot1x;
 
+  /* EAP message (up to MAX_EAP_LEN) must fit after the headers */
+  if (len > sizeof(packet) - PKT_ETH_HLEN - PKT_DOT1X_HLEN) {
+    syslog(LOG_ERR, "%s: EAP message too long (%zu)", __FUNCTION__, len);
+    return -1;
+  }
+
   copy_ethproto(pack, packet);
 
   packet_ethh = pkt_ethhdr(packet);
