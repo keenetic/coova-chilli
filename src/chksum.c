@@ -149,7 +149,7 @@ int chksum(struct pkt_iphdr_t *iph) {
             (struct pkt_udphdr_t *)(((void *)iph) + hlen);
         uint16_t udplen = ntohs(udph->len);
 
-        if (udplen > len)
+        if (len - hlen < PKT_UDP_HLEN || udplen > len - hlen)
           return -1;
 
         udph->check = 0;

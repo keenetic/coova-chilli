@@ -20,9 +20,12 @@
 #include "chilli.h"
 
 int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win) {
-  if (iph->protocol == PKT_IP_PROTO_TCP) {
+  uint16_t hlen = (iph->version_ihl & 0xf) * 4;
+  if (iph->protocol == PKT_IP_PROTO_TCP &&
+      iphdr_offset(iph) == 0 &&
+      ntohs(iph->tot_len) >= hlen + PKT_TCP_HLEN) {
     struct pkt_tcphdr_t *tcph =
-        (struct pkt_tcphdr_t *)(((uint8_t *)iph) + PKT_IP_HLEN);
+        (struct pkt_tcphdr_t *)(((uint8_t *)iph) + hlen);
     /*log_dbg("TCP Window %d", ntohs(tcph->win));*/
     if (ntohs(tcph->win) > win) {
 #if(_debug_ > 1)
@@ -49,7 +52,11 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
     syslog(LOG_DEBUG, "-->> offset: %d", off);
 #endif
 
-    if (off > 15 || off < 0)
+    if (off > 15 || off < 5)
+      return -1;
+
+    if (iphdr_offset(iph) != 0 ||
+        sizeofip(packet) + (off * 4) > *length)
       return -1;
 
     if (off > 5) {
@@ -111,7 +118,7 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
       }
     }
 
-    if (!hasmss && *length < 1400 && tcphdr_syn(tcph)) {
+    if (!hasmss && off < 15 && *length < 1400 && tcphdr_syn(tcph)) {
       uint8_t p[PKT_BUFFER];
       memcpy(p, packet, *length);
 

@@ -3416,6 +3416,15 @@ static int dhcp_relay(struct dhcp_t *this,
   struct dhcp_packet_t *pack_dhcp = pkt_dhcppkt(pack);
   struct sockaddr_in addr;
 
+  /* UDP payload must lie entirely within the received packet */
+  if (len < sizeofudp(pack) + DHCP_MIN_LEN ||
+      ntohs(pack_udph->len) < PKT_UDP_HLEN + DHCP_MIN_LEN ||
+      ntohs(pack_udph->len) > len - sizeofip(pack)) {
+    if (_options.debug)
+      syslog(LOG_DEBUG, "%s(%d): dropping truncated DHCP packet", __FUNCTION__, __LINE__);
+    return -1;
+  }
+
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = _options.dhcpgwip.s_addr;
@@ -3488,6 +3497,12 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   if (pack_udph->dst != htons(DHCP_BOOTPS))
     return 0; /* Not a DHCP packet */
+
+  /* UDP payload must lie entirely within the received packet */
+  if (len < sizeofudp(pack) + DHCP_MIN_LEN ||
+      ntohs(pack_udph->len) < PKT_UDP_HLEN + DHCP_MIN_LEN ||
+      ntohs(pack_udph->len) > len - sizeofip(pack))
+    return -1;
 
   if (dhcp_gettag(pkt_dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN,
 		  &message_type, DHCP_OPTION_MESSAGE_TYPE)) {
@@ -3728,6 +3743,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct app_conn_t *appconn = 0;
 
   uint16_t iph_tot_len;
+  uint16_t iph_hlen;
   uint16_t eth_tot_len;
 
 #if(_debug_ > 1)
@@ -3880,18 +3896,21 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
    * Sanity check on UDP total length
    * Note: we cannot check fragments.
    */
+  iph_hlen = (pack_iph->version_ihl & 0xf) * 4;
+
   if (pack_iph->protocol == PKT_IP_PROTO_UDP) {
     pack_udph = pkt_udphdr(pack);
     uint16_t udph_len = ntohs(pack_udph->len);
     if (udph_len < PKT_UDP_HLEN ||
-        iph_tot_len < PKT_IP_HLEN + PKT_UDP_HLEN ||
-        (iph_tot_len != udph_len + PKT_IP_HLEN &&
+        iph_tot_len < iph_hlen + PKT_UDP_HLEN ||
+        (iph_tot_len != udph_len + iph_hlen &&
          iphdr_more_frag(pack_iph) == 0 &&
          iphdr_offset(pack_iph) == 0)) {
       if (_options.debug)
-        syslog(LOG_DEBUG, "%s(%d): dropping udp packet; ip-len=%d != udp-len=%d + ip-hdr=20", __FUNCTION__, __LINE__,
+        syslog(LOG_DEBUG, "%s(%d): dropping udp packet; ip-len=%d != udp-len=%d + ip-hdr=%d", __FUNCTION__, __LINE__,
                (int) iph_tot_len,
-               (int) udph_len);
+               (int) udph_len,
+               (int) iph_hlen);
       OTHER_RECEIVED(conn, pack_iph);
       return 0;
     }
@@ -3899,7 +3918,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   if (pack_iph->protocol == PKT_IP_PROTO_TCP) {
     pack_tcph = pkt_tcphdr(pack);
-    if (iph_tot_len < PKT_IP_HLEN + PKT_TCP_HLEN) {
+    if (iph_tot_len < iph_hlen + PKT_TCP_HLEN) {
       if (_options.debug)
         syslog(LOG_DEBUG, "%s(%d): dropping tcp packet; ip-len=%d", __FUNCTION__, __LINE__,
                (int) iph_tot_len);
@@ -3944,6 +3963,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   is_dhcp = (((pack_iph->daddr == 0) ||
 	      (pack_iph->daddr == 0xffffffff) ||
 	      (pack_iph->daddr == ourip.s_addr)) &&
+	     !iphdr_more_frag(pack_iph) && iphdr_offset(pack_iph) == 0 &&
 	     (pack_udph && (pack_udph->dst == htons(DHCP_BOOTPS))));
 
   if (is_dhcp

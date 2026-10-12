@@ -173,7 +173,8 @@ struct pkt_iphdr_t {
 
 #define iphdr_dont_frag(p) ((p)->opt_off_high & 0x40)
 #define iphdr_more_frag(p) ((p)->opt_off_high & 0x20)
-#define iphdr_offset(p) ntohs((((p)->opt_off_high & 0x13) << 8)|(p)->off_low)
+/* Fragment offset in 8-byte units: low 13 bits of the flags/offset field */
+#define iphdr_offset(p) ((uint16_t)((((p)->opt_off_high & 0x1f) << 8) | (p)->off_low))
 
 #ifdef ENABLE_IPV6
 #define PKT_IPv6_ALEN 16

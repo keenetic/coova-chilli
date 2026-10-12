@@ -2660,7 +2660,8 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   }
 
   size_t hlen = (ipph->version_ihl & 0x0f) << 2;
-  if (ntohs(ipph->tot_len) > ip_len || hlen > ip_len) {
+  if (ntohs(ipph->tot_len) > ip_len || hlen < PKT_IP_HLEN ||
+      hlen > ntohs(ipph->tot_len)) {
     if (_options.debug)
       syslog(LOG_DEBUG, "%s(%d): invalid IP packet %d / %zu", __FUNCTION__, __LINE__,
              ntohs(ipph->tot_len),
@@ -2687,7 +2688,8 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
         if (iphdr_offset((struct pkt_iphdr_t*)ipph) == 0) {
           udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
         }
-        if (udph && !iphdr_more_frag((struct pkt_iphdr_t*)ipph) && (ntohs(udph->len) > ip_len)) {
+        if (udph && !iphdr_more_frag((struct pkt_iphdr_t*)ipph) &&
+            (ntohs(udph->len) > ntohs(ipph->tot_len) - hlen)) {
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): invalid UDP packet %d / %d / %zu", __FUNCTION__, __LINE__,
                    ntohs(ipph->tot_len),
