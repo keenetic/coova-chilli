@@ -2074,17 +2074,18 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
         if (_options.debug)
           syslog(LOG_DEBUG, "%s(%d): namelen %zd", __FUNCTION__, __LINE__, namelen);
 
-	if (namelen <= 0 || namelen > 1500)
+	if (namelen <= 0 || namelen > len)
 	  break;
 
+	p += namelen;
+	len -= namelen;
+
+	/* type, class, ttl, rdlength */
 	if (len < 10) {
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): len too short %d", __FUNCTION__, __LINE__, len);
 	  break;
 	}
-
-	p += namelen;
-	len -= namelen;
 
 	//pkt_type = p;
 	memcpy(&us, p, sizeof(us));
@@ -2111,6 +2112,15 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
         if (_options.debug)
           syslog(LOG_DEBUG, "%s(%d): DNS t=%d c=%d ttl=%d dlen=%d", __FUNCTION__, __LINE__,
                  type, class, ttl, rdlen);
+
+	/* rdata must be within the packet; an A record carries 4 bytes */
+	if (rdlen > len || (type == 1 && rdlen != 4))
+	  break;
+
+	/* rewritten record must fit: name + 10 + (16 for AAAA | rdlen) */
+	if ((size_t)(bp - b) + namelen + 10 + (type == 1 ? 16 : rdlen) >
+	    sizeof(b))
+	  break;
 
 	switch(type) {
           case 1:
@@ -2167,7 +2177,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
                    *plen, newlen, (int)(an_mark - pack), bdiff, data_len);
 	  data_len += PKT_UDP_HLEN;
 	  udph->len = htons(data_len);
-	  data_len += PKT_IP_HLEN;
+	  data_len += (iph->version_ihl & 0xf) * 4;
 	  iph->tot_len = htons(data_len);
 	  dnsp->ancount = htons(new_ancount);
 	  memcpy(an_mark, b, bdiff);
