@@ -125,7 +125,13 @@ static void process_radius_reply() {
   int l = openssl_read(server.conn.sslcon, (char *)d, 4, 0);
   syslog(LOG_DEBUG, "reply %d", l);
   if (l == 4) {
-    int len = ntohs(server.pack.length) - 4;
+    int len = ntohs(server.pack.length);
+    if (len < RADIUS_HDRSIZE || len > sizeof(server.pack)) {
+      syslog(LOG_ERR, "bad RadSec reply length %d", len);
+      shutdown_ssl();
+      return;
+    }
+    len -= 4;
     l = openssl_read(server.conn.sslcon, (char *)(d + 4), len, 0);
     syslog(LOG_DEBUG, "reply %d", l);
     if (l == len) {
