@@ -88,6 +88,7 @@
 #define DHCP_ARP_REPLY   2
 
 #define DHCP_DNS_HLEN  12
+#define DHCP_DNS_MAX_QDCOUNT 4 /* Max questions per unicast DNS packet */
 
 struct dhcp_t; /* Forward declaration */
 

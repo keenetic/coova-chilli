@@ -1797,6 +1797,14 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
     }
 #endif
 
+    /* mDNS legitimately carries many questions per packet */
+    if (mode != DNS_MDNS_MODE && qdcount > DHCP_DNS_MAX_QDCOUNT) {
+      if (_options.debug)
+        syslog(LOG_DEBUG, "%s(%d): Dropping DNS packet with %d questions (max %d)", __FUNCTION__, __LINE__,
+               qdcount, DHCP_DNS_MAX_QDCOUNT);
+      return 0;
+    }
+
     memset(q, 0, sizeof(q));
 
 #undef  copyres
@@ -1867,7 +1875,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 
       uint8_t *p;
 
-      uint8_t query[256];
+      /* name (max 255) + qtype/qclass (4) + answer RR (16) */
+      uint8_t query[255 + 4 + 16];
       uint8_t reply[4];
 
       int match = 0;
@@ -1940,11 +1949,10 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	struct pkt_udphdr_t *answer_udph;
 	struct dns_packet_t *answer_dns;
 
+	uint8_t *pend = pack + *plen;
 	size_t query_len = 0;
 	size_t udp_len;
 	size_t length;
-
-	int n;
 
 	p = dnsp->records;
 
@@ -1952,18 +1960,19 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	syslog(LOG_DEBUG, "%s(%d): It was a matching query!\n", __FUNCTION__, __LINE__);
 #endif
 
+	/* Only the first question is echoed back */
 	do {
-	  if (query_len < 256)
-	    query[query_len++] = *p;
-	  else
-	    break;
+	  if (query_len >= 255 || p >= pend)
+	    return 0;
+	  query[query_len++] = *p;
 	}
-	while (*p++ != 0); /* TODO */
+	while (*p++ != 0);
 
-        for (n=0; n<4; n++) {
-          if (query_len < 256)
-            query[query_len++] = *p++;
-        }
+	if (p + 4 > pend)
+	  return 0;
+
+	memcpy(query + query_len, p, 4); /* qtype, qclass */
+	query_len += 4;
 
 	query[query_len++] = 0xc0;
 	query[query_len++] = 0x0c;
@@ -1980,10 +1989,16 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	memcpy(query + query_len, reply, 4);
 	query_len += 4;
 
-	memcpy(answer, pack, *plen); /* TODO */
+	/*
+	 * Copy only the Ethernet header; every other header field
+	 * is rewritten below and the payload is the single answer.
+	 */
+	memcpy(answer, pack, sizeofeth(pack));
 
 	answer_ethh = pkt_ethhdr(answer);
 	answer_iph = pkt_iphdr(answer);
+	/* Set IHL first, the header macros below depend on it */
+	answer_iph->version_ihl = PKT_IP_VER_HLEN;
 	answer_udph = pkt_udphdr(answer);
 	answer_dns = pkt_dnspkt(answer);
 
@@ -2003,7 +2018,6 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	answer_udph->dst = udph->src;
 
 	/* Ip header */
-	answer_iph->version_ihl = PKT_IP_VER_HLEN;
 	answer_iph->tos = 0;
 	answer_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
 	answer_iph->id = 0;
