@@ -3962,7 +3962,12 @@ void session_param_defaults(struct session_params *params) {
     params->interim_interval = _options.definteriminterval;
 }
 
-void
+/*
+ * Returns 1 when the packet asks for an admin reset of appconn.  The
+ * caller does the reset with dhcp_release_mac() once it no longer
+ * uses appconn, since the reset frees it.
+ */
+int
 config_radius_session(struct session_params *params,
 		      struct radius_packet_t *pack,
 		      struct app_conn_t *appconn,
@@ -3971,6 +3976,7 @@ config_radius_session(struct session_params *params,
   size_t offset = 0;
   /*int is_splash = 0;*/
   int seen;
+  int admin_reset = 0;
 
   /* Session timeout */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0))
@@ -4199,8 +4205,7 @@ config_radius_session(struct session_params *params,
 			    RADIUS_TERMINATE_CAUSE_USER_REQUEST);
       } else if (appconn && len >= strlen(adminreset) &&
 		 !memcmp(val, adminreset, strlen(adminreset))) {
-	dhcp_release_mac(dhcp, appconn->hismac,
-			 RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+	admin_reset = 1;
       }
     }
   }
@@ -4285,6 +4290,8 @@ config_radius_session(struct session_params *params,
     params->sessionterminatetime = 0;
 
   session_param_defaults(params);
+
+  return admin_reset;
 }
 
 static int chilliauth_cb(struct radius_t *radius,
@@ -4431,7 +4438,9 @@ int cb_radius_acct_conf(struct radius_t *radius,
   if (!pack) /* Timeout */
     return 0;
 
-  config_radius_session(&appconn->s_params, pack, appconn, 1);
+  if (config_radius_session(&appconn->s_params, pack, appconn, 1))
+    dhcp_release_mac(dhcp, appconn->hismac,
+		     RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
   return 0;
 }
 
@@ -4654,7 +4663,11 @@ int cb_radius_auth_conf(struct radius_t *radius,
   if (pack->code == RADIUS_CODE_ACCESS_REJECT) {
     if (_options.debug)
       syslog(LOG_DEBUG, "%s(%d): Received RADIUS Access-Reject", __FUNCTION__, __LINE__);
-    config_radius_session(&appconn->s_params, pack, appconn, 0); /*XXX*/
+    if (config_radius_session(&appconn->s_params, pack, appconn, 0)) {
+      dhcp_release_mac(dhcp, appconn->hismac,
+		       RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+      return 0;
+    }
     return dnprot_reject(appconn);
   }
 
@@ -4728,7 +4741,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
     appconn->s_state.redir.classlen = 0;
   }
 
-  config_radius_session(&appconn->s_params, pack, appconn, 0);
+  if (config_radius_session(&appconn->s_params, pack, appconn, 0) &&
+      !appconn->is_adminsession) {
+    dhcp_release_mac(dhcp, appconn->hismac,
+		     RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+    return 0;
+  }
 
   if (appconn->is_adminsession) {
     /* for the admin session */
@@ -4881,7 +4899,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 /* Radius callback when coa or disconnect request has been received */
 int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 		      struct sockaddr_in *peer) {
-  struct app_conn_t *appconn;
+  struct app_conn_t *appconn, *next;
   struct radius_attr_t *uattr = NULL;
   struct radius_attr_t *sattr = NULL;
   struct radius_packet_t radius_pack;
@@ -4917,7 +4935,9 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
              sattr ? (char*)sattr->v.t : "all");
     }
 
-  for (appconn = firstusedconn; appconn; appconn = appconn->next) {
+  for (appconn = firstusedconn; appconn; appconn = next) {
+    /* An admin reset below frees appconn */
+    next = appconn->next;
 
     if (!appconn->inuse) { syslog(LOG_ERR, "Connection with inuse == 0!"); }
 
@@ -4957,12 +4977,16 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
       }
 
-      config_radius_session(&appconn->s_params, pack, appconn, 0);
+      found = 1;
+
+      if (config_radius_session(&appconn->s_params, pack, appconn, 0)) {
+	dhcp_release_mac(dhcp, appconn->hismac,
+			 RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+	continue;
+      }
 
       if (authorize)
 	dnprot_accept(appconn);
-
-      found = 1;
     }
   }
 

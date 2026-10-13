@@ -249,10 +249,10 @@ int chilli_acct_tosub(struct app_conn_t *appconn,
 
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);
 
-void config_radius_session(struct session_params *params,
-			   struct radius_packet_t *pack,
-			   struct app_conn_t *appconn,
-			   int reconfig);
+int config_radius_session(struct session_params *params,
+			  struct radius_packet_t *pack,
+			  struct app_conn_t *appconn,
+			  int reconfig);
 
 void session_param_defaults(struct session_params *params);
 
