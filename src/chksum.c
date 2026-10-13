@@ -68,6 +68,9 @@ int chksum6(struct pkt_ip6hdr_t *iph) {
             (struct pkt_udphdr_t *)
             (((uint8_t *)iph) + sizeof(struct pkt_ip6hdr_t));
         uint16_t udplen = ntohs(udphdr->len);
+        if (ntohs(iph->data_len) < PKT_UDP_HLEN ||
+            udplen < PKT_UDP_HLEN || udplen > ntohs(iph->data_len))
+          return -1;
         memcpy(hdr.src_addr, iph->src_addr, PKT_IPv6_ALEN);
         memcpy(hdr.dst_addr, iph->dst_addr, PKT_IPv6_ALEN);
         hdr.packet_len=htonl((uint32_t)ntohs(iph->data_len));
