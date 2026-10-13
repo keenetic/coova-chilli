@@ -5794,6 +5794,19 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     uint32_t saddr = iph->saddr;
     uint8_t *payload, *m;
 
+    /* The 40 byte IPv6 header replaces the 20 byte IPv4 header, so
+     * 20 bytes of headroom are needed and IPv4 options are not
+     * supported. */
+    if (pb->offset < 20 ||
+        length < sizeofeth2(tag) + PKT_IP_HLEN ||
+        (iph->version_ihl & 0xf) != 5 ||
+        ntohs(iplen) < PKT_IP_HLEN ||
+        ntohs(iplen) > length - sizeofeth2(tag)) {
+      syslog(LOG_ERR, "%s(%d): cannot translate packet to IPv6 off=%d len=%zd",
+             __FUNCTION__, __LINE__, (int) pb->offset, length);
+      return 0;
+    }
+
     pb->length = length;
 
 #if(_debug_ > 1)

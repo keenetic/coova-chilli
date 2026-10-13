@@ -2393,24 +2393,37 @@ static int fwd_ssdp(struct in_addr *dst,
 
     if (_options.debug) {
       char *bufr = (char *)(((void *)udph) + sizeof(struct pkt_udphdr_t));
+      int bufrlen = ntohs(udph->len) - (int) sizeof(struct pkt_udphdr_t);
       struct in_addr src;
 
       src.s_addr = iph->saddr;
 
       syslog(LOG_DEBUG, "%s(%d): ssdp multicast from %s\n%.*s", __FUNCTION__, __LINE__, inet_ntoa(src),
-             ntohs(udph->len), bufr);
+             bufrlen > 0 ? bufrlen : 0, bufr);
     }
 
+    if (pb->offset + pkt_buffer_length(pb) > PKT_BUFFER)
+      return 1;
+
     /* This sends to a unicast MAC address but a multicast IP address.
+     *
+     * dhcp_data_req() grows the buffer and rewrites the headers in
+     * place, so each client gets its own copy of the packet.
      */
     struct dhcp_conn_t *conn = dhcp->firstusedconn;
     while (conn) {
       if (conn->inuse && conn->authstate == DHCP_AUTH_PASS) {
+	uint8_t packet[PKT_BUFFER];
+	struct pkt_buffer cpb;
 	/*
 	if (_options.debug)
   syslog(LOG_DEBUG, "sending to %s.", inet_ntoa(conn->hisip ));
 	*/
-	dhcp_data_req(conn, pb, ethhdr);
+	memcpy(packet + pb->offset, pkt_buffer_head(pb),
+	       pkt_buffer_length(pb));
+	pkt_buffer_init2(&cpb, packet, sizeof(packet),
+			 pb->offset, pkt_buffer_length(pb));
+	dhcp_data_req(conn, &cpb, ethhdr);
       }
       conn = conn->next;
     }
