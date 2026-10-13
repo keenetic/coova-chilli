@@ -4637,7 +4637,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	}
           break;
       }
-    }
+    } break;
     case PKT_IP_PROTO_UDP: {
       struct pkt_udphdr_t * udphdr =
           (struct pkt_udphdr_t *)
