@@ -913,6 +913,11 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   int result;
 
+  if (len < PKT_ETH_HLEN || len < sizeofeth(pack) + PKT_IP_HLEN) {
+    syslog(LOG_ERR, "tun_encaps: packet too short (%zu)", len);
+    return -1;
+  }
+
   if (_options.tcpwin)
     pkt_shape_tcpwin(pkt_iphdr(pack), _options.tcpwin);
 
