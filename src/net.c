@@ -1018,7 +1018,7 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
 #endif
 #ifdef EMSGSIZE
       case EMSGSIZE:
-        if (dlen > netif->mtu)
+        if (dlen > netif->mtu && dlen < 1537)
           net_set_mtu(netif, dlen);
         break;
 #endif
