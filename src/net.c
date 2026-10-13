@@ -354,9 +354,43 @@ int net_select_dereg(select_ctx *sctx, int oldfd) {
   int i;
   for (i=0; i < sctx->count; i++) {
     if (sctx->desc[i].fd == oldfd) {
-      for (; i < sctx->count - 1; i++)
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+      struct epoll_event event;
+      int j;
+
+      memset(&event, 0, sizeof(event));
+      if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, oldfd, &event))
+	syslog(LOG_ERR, "%s: epoll fd %d not found", strerror(errno), oldfd);
+
+      /* Events already returned by epoll_wait() point at desc[]
+       * slots; drop the ones for this fd and follow the others as
+       * they move down. */
+      for (j=0; j < MAX_SELECT; j++) {
+	select_fd *sfd = (select_fd *)sctx->events[j].data.ptr;
+	if (sfd == &sctx->desc[i])
+	  sctx->events[j].data.ptr = NULL;
+	else if (sfd > &sctx->desc[i] && sfd < &sctx->desc[sctx->count])
+	  sctx->events[j].data.ptr = sfd - 1;
+      }
+#endif
+      for (; i < sctx->count - 1; i++) {
 	memcpy(&sctx->desc[i], &sctx->desc[i+1], sizeof(select_fd));
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+	/* The registration points at the old slot */
+	memset(&event, 0, sizeof(event));
+	if (sctx->desc[i].evts & SELECT_READ) event.events |= EPOLLIN;
+	if (sctx->desc[i].evts & SELECT_WRITE) event.events |= EPOLLOUT;
+	event.data.ptr = &sctx->desc[i];
+	if (epoll_ctl(sctx->efd, EPOLL_CTL_MOD, sctx->desc[i].fd, &event))
+	  syslog(LOG_ERR, "%s: Failed to watch fd", strerror(errno));
+#elif defined(USING_POLL)
+	memcpy(&sctx->pfds[i], &sctx->pfds[i+1], sizeof(struct pollfd));
+#endif
+      }
       memset(&sctx->desc[i], 0, sizeof(select_fd));
+#if defined(USING_POLL) && !defined(HAVE_SYS_EPOLL_H)
+      memset(&sctx->pfds[i], 0, sizeof(struct pollfd));
+#endif
       sctx->count--;
       return 0;
     }
@@ -645,7 +679,9 @@ int net_run_selected(select_ctx *sctx, int status) {
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
   for (i=0; i < status; i++) {
     select_fd *sfd = (select_fd *)sctx->events[i].data.ptr;
-    sfd->cb(sfd->ctx, sfd->idx);
+    /* NULL when a callback deregistered the fd */
+    if (sfd && sfd->cb)
+      sfd->cb(sfd->ctx, sfd->idx);
   }
 #else
   for (i=0; i < sctx->count; i++) {
