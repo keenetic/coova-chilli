@@ -52,7 +52,7 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 
 	ret++;
 
-	if (offset > olen) {
+	if (offset >= olen) {
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): bad value", __FUNCTION__, __LINE__);
 	  return -1;

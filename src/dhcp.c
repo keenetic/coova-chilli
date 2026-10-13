@@ -1811,7 +1811,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 #define copyres(isq,n)                                          \
     for (i=0; dlen && i < n ## count; i++) {                    \
       if (dns_copy_res(conn, isq, &dptr, &dlen,                 \
-		       (uint8_t *)dnsp, olen,                   \
+		       (uint8_t *)dnsp, olen + DHCP_DNS_HLEN,   \
 		       q, sizeof(q) - 1, isReq,                 \
 		       &qmatch, &mod, mode)) {                  \
         syslog(LOG_WARNING, "dropping malformed DNS");		\
@@ -2059,7 +2059,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
       for (i=0; i < ancount; i++) {
 
 	ssize_t namelen =  dns_fullname((char*)n, sizeof(n)-1,
-					p, len, (uint8_t *)dnsp, olen, 0);
+					p, len, (uint8_t *)dnsp,
+					olen + DHCP_DNS_HLEN, 0);
 
 	uint16_t type;
 	uint16_t class;
