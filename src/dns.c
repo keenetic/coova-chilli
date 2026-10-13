@@ -72,9 +72,11 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
       }
     }
 
-    if (l >= dlen || l >= olen) {
+    /* 0x40 and 0x80 label types are reserved, and the label must
+     * fit in what is left of the resource */
+    if ((l & 0xC0) != 0 || l > reslen || l >= dlen || l >= olen) {
       if (_options.debug)
-        syslog(LOG_DEBUG, "%s(%d): bad value %d/%zu/%zu", __FUNCTION__, __LINE__, l, dlen, olen);
+        syslog(LOG_DEBUG, "%s(%d): bad value %d/%zu/%zu/%zu", __FUNCTION__, __LINE__, l, reslen, dlen, olen);
       return -1;
     }
 
