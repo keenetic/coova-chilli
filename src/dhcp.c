@@ -6292,8 +6292,11 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     struct pkt_dot1xhdr_t *p_dot1x;
     struct eap_packet_t *p_eap;
 
-    /* Allocate new connection */
+    /* Allocate new connection for a unicast source */
     if (conn == NULL) {
+      if ((pack_ethh->src[0] & 0x01) ||
+	  !memcmp(pack_ethh->src, nmac, PKT_ETH_ALEN))
+	return 0;
       if (dhcp_newconn(this, &conn, pack_ethh->src))
 	return 0; /* Out of connections */
     }
