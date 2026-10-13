@@ -256,15 +256,16 @@ void conn_set_donehandler(struct conn_t *conn, conn_handler handler, void *ctx) 
 }
 
 int conn_close(struct conn_t *conn) {
-  if (conn->sock)
-    close(conn->sock);
 #ifdef HAVE_SSL
+  /* shut down SSL while its socket is still open */
   if (conn->sslcon) {
     openssl_shutdown(conn->sslcon, 2);
     openssl_free(conn->sslcon);
     conn->sslcon = 0;
   }
 #endif
+  if (conn->sock)
+    close(conn->sock);
   conn->sock = 0;
   return 0;
 }
