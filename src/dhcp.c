@@ -5016,7 +5016,7 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
   if (hdr->version_type == PKT_PPPoE_VERSION &&
       hdr->session_id == 0x0000) {
     int len = ntohs(hdr->length);
-    uint16_t t, l;
+    int t, l;
     
     uint8_t host_uniq[32];
     uint8_t host_uniq_len=0;
@@ -5027,13 +5027,18 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
     
     p += sizeof(struct pkt_pppoe_hdr_t);
 
-    while (len > 0) {
+    if (len > length - hdrlen)
+      len = length - hdrlen;
+
+    while (len >= sizeof(struct pkt_pppoe_taghdr_t)) {
       struct pkt_pppoe_taghdr_t *tag = (struct pkt_pppoe_taghdr_t *) p;
 
       if (tag->type == 0x0000) break;
 
       t = ntohs(tag->type);
       l = ntohs(tag->length);
+
+      if (l > len - sizeof(struct pkt_pppoe_taghdr_t)) break;
 
       switch(t) {
         case PPPoE_TAG_ServiceName:
@@ -5049,7 +5054,7 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
         case PPPoE_TAG_HostUniq:
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): PPPoE Host-Uniq: %.*s", __FUNCTION__, __LINE__,
-                   l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
+                   l, p + sizeof(struct pkt_pppoe_taghdr_t));
           if (l > sizeof(host_uniq)) break;
           host_uniq_len = l;
           memcpy(host_uniq, p + sizeof(struct pkt_pppoe_taghdr_t), l);
@@ -5057,7 +5062,7 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
         default:
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): PPPoE Tag Type 0x%.4x = (%d)[%.*s]", __FUNCTION__, __LINE__,
-                   t, l, l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
+                   t, l, l, p + sizeof(struct pkt_pppoe_taghdr_t));
           break;
       }
 
