@@ -4906,6 +4906,11 @@ static
 int dhcp_pppoes(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
   uint8_t *p = packet + sizeofeth(packet);
   struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
+  /* Ethernet, PPPoE, PPP protocol and LCP headers */
+  size_t hdrlen = sizeofeth(packet) + sizeof(struct pkt_pppoe_hdr_t) +
+      2 + sizeof(struct pkt_ppp_lcp_t);
+  if (length < hdrlen)
+    return 0;
   if (hdr->version_type == PKT_PPPoE_VERSION &&
       hdr->code == 0x0000) {
     int len = ntohs(hdr->length);
@@ -4943,11 +4948,11 @@ int dhcp_pppoes(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
               
 	      dhcp_conn_set_idx(conn, ctx);
               
-	      /* Copy over original packet,
+	      /* Copy over original headers,
 	       * get pointers to answer structure.
 	       */
               
-	      memcpy(answer, packet, length);
+	      memcpy(answer, packet, hdrlen);
               
 	      answer_ethh = pkt_ethhdr(answer);
 
@@ -5005,6 +5010,9 @@ static
 int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
   uint8_t *p = packet + sizeofeth(packet);
   struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
+  size_t hdrlen = sizeofeth(packet) + sizeof(struct pkt_pppoe_hdr_t);
+  if (length < hdrlen)
+    return 0;
   if (hdr->version_type == PKT_PPPoE_VERSION &&
       hdr->session_id == 0x0000) {
     int len = ntohs(hdr->length);
@@ -5082,11 +5090,11 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
         
 	dhcp_conn_set_idx(conn, ctx);
         
-	/* Copy over original packet,
+	/* Copy over original headers,
 	 * get pointers to answer structure.
 	 */
         
-	memcpy(answer, packet, length);
+	memcpy(answer, packet, hdrlen);
 
 	answer_ethh = pkt_ethhdr(answer);
 
