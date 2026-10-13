@@ -3775,7 +3775,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   uint16_t iph_tot_len;
   uint16_t iph_hlen;
-  uint16_t eth_tot_len;
+  size_t eth_tot_len;
 
 #if(_debug_ > 1)
   if (_options.debug)
@@ -3866,7 +3866,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   iph_tot_len = ntohs(pack_iph->tot_len);
   eth_tot_len = iph_tot_len + sizeofeth(pack);
 
-  if (eth_tot_len > (uint16_t) len) {
+  if (eth_tot_len > len) {
     if (_options.debug)
       syslog(LOG_DEBUG, "%s(%d): dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d", __FUNCTION__, __LINE__,
              iph_tot_len,
@@ -3918,7 +3918,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   /*
    *  Chop off any trailer length
    */
-  if (len > (size_t) eth_tot_len) {
+  if (len > eth_tot_len) {
     //log_dbg("chopping off trailer length %d", len - eth_tot_len);
     len = eth_tot_len;
   }
