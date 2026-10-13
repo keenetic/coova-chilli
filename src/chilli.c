@@ -2085,13 +2085,11 @@ int chilli_assign_snat(struct app_conn_t *appconn, int force) {
   }
 
   if (ippool_newip(ippool, &newipm, &appconn->natip, 0)) {
-    syslog(LOG_ERR, "Failed to allocate SNAT IP address");
     /*
-     *  Clean up the static pool listing too, it's misconfigured now.
+     *  Leave the connection to the caller, which still uses it,
+     *  and try again on the next request or packet.
      */
-    if (appconn->dnlink) {
-      dhcp_freeconn((struct dhcp_conn_t *)appconn->dnlink, 0);
-    }
+    syslog(LOG_ERR, "Failed to allocate SNAT IP address");
     return -1;
   }
 
