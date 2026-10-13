@@ -1892,6 +1892,10 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   req.tp_block_size = 4 * 1024;
 #endif
 
+  /* Blocks are made of whole pages */
+  if (req.tp_block_size < page_size)
+    req.tp_block_size = page_size;
+
   ret = -1;
   while (req.tp_block_size > req.tp_frame_size && req.tp_block_size >= page_size) {
     req.tp_block_nr = ring_size / req.tp_block_size;
@@ -1900,6 +1904,13 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
       req.tp_block_nr = max_blocks;
 
     req.tp_frame_nr = (req.tp_block_size / req.tp_frame_size) * req.tp_block_nr;
+
+    /* The kernel takes an empty ring as a request to remove the
+     * ring, and would report success */
+    if (!req.tp_frame_nr) {
+      req.tp_block_size >>= 1;
+      continue;
+    }
 
     ret = net_setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
     if (!ret)
@@ -1918,7 +1929,12 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   ring->len = req.tp_block_size * req.tp_block_nr;
   ring->block_size = req.tp_block_size;
   ring->cnt = req.tp_frame_nr;
-  ring->frames = calloc(sizeof(void *), req.tp_frame_nr);
+  ring->frames = calloc(req.tp_frame_nr, sizeof(void *));
+  if (!ring->frames) {
+    syslog(LOG_ERR, "Failed to allocate the %s ring frames", name);
+    destroy_one_ring(iface, what);
+    return;
+  }
 
   syslog(LOG_INFO, "Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d",
          name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
