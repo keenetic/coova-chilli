@@ -397,7 +397,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
         int txtlen = rdlen;
         while (txtlen-- > 0) {
           uint8_t l = *txt++;
-          if (l == 0) break;
+          if (l == 0 || l > txtlen) break;
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): Text: %.*s", __FUNCTION__, __LINE__, (int) l, txt);
           txt += l;
