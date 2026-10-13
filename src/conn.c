@@ -201,17 +201,24 @@ static int
 _conn_bstring_readhandler(struct conn_t *conn, void *ctx) {
   bstring data = (bstring)ctx;
   int ret;
-  ballocmin(data, data->slen + 128);
 
+  if (ballocmin(data, data->slen + 128) != BSTR_OK) {
+    syslog(LOG_ERR, "%s(%d): out of memory", __FUNCTION__, __LINE__);
+    conn_finish(conn);
+    return -1;
+  }
+
+  /* leave room for the terminating NUL */
   ret = safe_read(conn->sock,
 		  data->data + data->slen,
-		  data->mlen - data->slen);
+		  data->mlen - data->slen - 1);
 
   if (ret > 0) {
 #if(_debug_)
     syslog(LOG_DEBUG, "%s(%d): bstring_read: %d bytes", __FUNCTION__, __LINE__, ret);
 #endif
     data->slen += ret;
+    data->data[data->slen] = 0;
   } else {
 #if(_debug_)
     syslog(LOG_DEBUG, "%s(%d): socket closed!", __FUNCTION__, __LINE__);
