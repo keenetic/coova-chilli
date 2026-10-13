@@ -5719,14 +5719,28 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     /*
      * Ethernet frame
      */
-    size_t hdrplus = sizeofeth2(tag) - sizeofeth(packet);
-    if (hdrplus > 0) {
+    size_t hdrlen, newlen;
+
+    if (length < PKT_ETH_HLEN || length < sizeofeth(packet))
+      return 0;
+
+    hdrlen = sizeofeth(packet);
+    newlen = sizeofeth2(tag);
+
+    if (newlen > hdrlen) {
+      size_t hdrplus = newlen - hdrlen;
       if (pb->offset < hdrplus) {
 	syslog(LOG_ERR, "bad buffer off=%d hdrplus=%d",
                (int) pb->offset, (int) hdrplus);
 	return 0;
       }
       pkt_buffer_grow(pb, hdrplus);
+      packet = pkt_buffer_head(pb);
+      length = pkt_buffer_length(pb);
+    } else if (newlen < hdrlen) {
+      /* dhcp_ethhdr() writes the new header; drop the 802.1Q tag */
+      pb->offset += hdrlen - newlen;
+      pb->length -= hdrlen - newlen;
       packet = pkt_buffer_head(pb);
       length = pkt_buffer_length(pb);
     }
