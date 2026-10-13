@@ -268,6 +268,8 @@ int radius_printqueue(int fd, struct radius_t *this);
 
 int radius_init_q(struct radius_t *this, int size);
 
+void radius_queue_forget(struct radius_t *this, void *cbp);
+
 /* Delete existing radius instance */
 int radius_free(struct radius_t *this);
 

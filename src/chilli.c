@@ -971,6 +971,11 @@ int static freeconn(struct app_conn_t *conn) {
   if (conn->loc_search_node!=NULL) location_close_conn(conn,1);
 #endif
 
+  /* Responses to requests still queued for this connection
+     must not be applied to the next session in this slot */
+  if (radius)
+    radius_queue_forget(radius, conn);
+
   /* Remove from link of used */
   if ((conn->next) && (conn->prev)) {
     conn->next->prev = conn->prev;

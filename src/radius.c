@@ -374,6 +374,20 @@ int radius_queue_in(struct radius_t *this,
 }
 
 /*
+ * radius_queue_forget()
+ * Detach a callback pointer that is being freed from all queued
+ * requests, so their responses and timeouts are not applied to it.
+ */
+void radius_queue_forget(struct radius_t *this, void *cbp) {
+  int idx;
+
+  for (idx = this->first; idx != -1; idx = this->queue[idx].next) {
+    if (this->queue[idx].cbp == cbp)
+      this->queue[idx].cbp = NULL;
+  }
+}
+
+/*
  * radius_queue_out()
  * Remove data from queue.
  */
