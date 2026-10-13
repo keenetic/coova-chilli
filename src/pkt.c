@@ -63,11 +63,11 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
       uint8_t *opts = tcph->options;
       uint8_t type;
       int len;
-      int words = off - 5;
+      int optlen = (off - 5) * 4;
       int done = 0;
       int i = 0;
 
-      while (!done && (i / 4) < words) {
+      while (!done && i < optlen) {
 	switch(type = opts[i++]) {
           case 0:
             done = 1;
@@ -80,8 +80,13 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
             break;
 
           default:
+            if (i >= optlen) {
+              syslog(LOG_ERR, "truncated TCP option during parse");
+              return -1;
+            }
             len = (int) opts[i++];
-            if (len < 2 || len > TCP_MAX_OPTION_LEN) {
+            if (len < 2 || len > TCP_MAX_OPTION_LEN ||
+                i - 2 + len > optlen) {
               syslog(LOG_ERR, "bad TCP option during parse, len=%d", len);
               return -1;
             }
