@@ -3257,12 +3257,18 @@ static int dhcp_accept_opt(struct dhcp_conn_t *conn, uint8_t *o, int pos) {
 #endif
 
   if (_options.rfc7710uri) {
-    o[pos++] = DHCP_OPTION_CAPTIVE_PORTAL_URI;
-    o[pos++] = strlen(_options.rfc7710uri);
-    memcpy(&o[pos], _options.rfc7710uri, strlen(_options.rfc7710uri));
-    pos += strlen(_options.rfc7710uri);
-    if (_options.debug)
-      syslog(LOG_DEBUG, "%s(%d): DHCP Captive Portal URI %s\n", __FUNCTION__, __LINE__, _options.rfc7710uri);
+    size_t ulen = strlen(_options.rfc7710uri);
+    if (ulen > 255) {
+      syslog(LOG_ERR, "%s(%d): DHCP Captive Portal URI too long (%zu)",
+             __FUNCTION__, __LINE__, ulen);
+    } else {
+      o[pos++] = DHCP_OPTION_CAPTIVE_PORTAL_URI;
+      o[pos++] = ulen;
+      memcpy(&o[pos], _options.rfc7710uri, ulen);
+      pos += ulen;
+      if (_options.debug)
+        syslog(LOG_DEBUG, "%s(%d): DHCP Captive Portal URI %s\n", __FUNCTION__, __LINE__, _options.rfc7710uri);
+    }
   }
 
   o[pos++] = DHCP_OPTION_END;
