@@ -3499,7 +3499,7 @@ static int dhcp_relay(struct dhcp_t *this,
        previous replies) */
     struct dhcp_tag_t *tag = 0;
     if (!dhcp_gettag(pack_dhcp, ntohs(pack_udph->len) - PKT_UDP_HLEN,
-		     &tag, DHCP_OPTION_SERVER_ID)) {
+		     &tag, DHCP_OPTION_SERVER_ID) && tag->l == 4) {
       memcpy(tag->v, &_options.dhcpgwip.s_addr, 4);
     }
   }
@@ -3608,7 +3608,8 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   addr.s_addr = pack_dhcp->ciaddr;
 
   if (!dhcp_gettag(pkt_dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN,
-		   &requested_ip, DHCP_OPTION_REQUESTED_IP))
+		   &requested_ip, DHCP_OPTION_REQUESTED_IP) &&
+      requested_ip->l == 4)
     memcpy(&addr.s_addr, requested_ip->v, 4);
 
   if (_options.strictdhcp && addr.s_addr &&
@@ -5644,7 +5645,7 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
        */
       struct dhcp_tag_t *tag = 0;
       if (!dhcp_gettag(pkt_dhcppkt(fullpack), length,
-		       &tag, DHCP_OPTION_SERVER_ID)) {
+		       &tag, DHCP_OPTION_SERVER_ID) && tag->l == 4) {
 	memcpy(tag->v, &_options.dhcplisten.s_addr, 4);
       }
     }
