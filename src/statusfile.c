@@ -29,6 +29,94 @@ extern struct ippool_t *ippool;
 #ifdef ENABLE_BINSTATFILE
 static int has_loaded = 0;
 
+/*
+ * The state file holds raw structures.  Do not trust the lengths,
+ * indexes and strings in them: a truncated, corrupted or stale file,
+ * or one from a build with a different layout, must not lead to
+ * out-of-bounds access.
+ */
+#define clampstr(s) (s)[sizeof(s) - 1] = 0
+#define clamplen(l, b) if ((l) > sizeof(b)) (l) = 0
+
+static void sanitize_dhcpconn(struct dhcp_conn_t *conn) {
+  clampstr(conn->domain);
+  if (conn->nextdnat < 0 || conn->nextdnat >= DHCP_DNAT_MAX)
+    conn->nextdnat = 0;
+#ifdef ENABLE_MULTILAN
+  if (conn->lanidx < 0 || conn->lanidx >= MAX_RAWIF)
+    conn->lanidx = 0;
+#endif
+}
+
+static void sanitize_appconn(struct app_conn_t *aconn) {
+  struct session_params *params = &aconn->s_params;
+  struct session_state *state = &aconn->s_state;
+
+  /* pointers from the previous process */
+#ifdef HAVE_PATRICIA
+  aconn->ptree = 0;
+#endif
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+  memset(&aconn->loc_sess, 0, sizeof(aconn->loc_sess));
+  aconn->loc_search_node = 0;
+#endif
+
+  clampstr(params->url);
+#ifdef ENABLE_MULTIROUTE
+  if (tun && params->routeidx >= tun->_interface_count)
+    params->routeidx = 0;
+#endif
+#ifdef ENABLE_SESSGARDEN
+  if (params->pass_through_count > SESSION_PASS_THROUGH_MAX)
+    params->pass_through_count = SESSION_PASS_THROUGH_MAX;
+#endif
+
+  clampstr(state->redir.username);
+  clampstr(state->redir.userurl);
+  clamplen(state->redir.classlen, state->redir.classbuf);
+  clamplen(state->redir.cuilen, state->redir.cuibuf);
+  clamplen(state->redir.statelen, state->redir.statebuf);
+#ifdef ENABLE_USERAGENT
+  clampstr(state->redir.useragent);
+#endif
+#ifdef ENABLE_ACCEPTLANGUAGE
+  clampstr(state->redir.acceptlanguage);
+#endif
+#if defined(ENABLE_LOCATION) || defined(ENABLE_PROXYVSA)
+  clamplen(state->redir.calledlen, state->redir.called);
+#endif
+#ifdef ENABLE_PROXYVSA
+  clamplen(state->redir.vsalen, state->redir.vsa);
+#endif
+
+  clampstr(state->sessionid);
+#ifdef ENABLE_SESSIONID
+  clampstr(state->chilli_sessionid);
+#endif
+#ifdef ENABLE_APSESSIONID
+  clampstr(state->ap_sessionid);
+#endif
+#ifdef ENABLE_GARDENACCOUNTING
+  clampstr(state->garden_sessionid);
+#endif
+#ifdef ENABLE_LOCATION
+  clampstr(state->location);
+  clampstr(state->pending_location);
+#endif
+#ifdef ENABLE_MULTILAN
+  if (state->lanidx < 0 || state->lanidx >= MAX_RAWIF)
+    state->lanidx = 0;
+#endif
+
+#ifdef ENABLE_RADPROXY
+  clamplen(aconn->challen, aconn->chal);
+  clamplen(aconn->sendlen, aconn->sendkey);
+  clamplen(aconn->recvlen, aconn->recvkey);
+  clamplen(aconn->lmntlen, aconn->lmntkeys);
+  clamplen(aconn->ms2succlen, aconn->ms2succ);
+#endif
+}
+
 int loadstatus(void) {
   char filedest[512];
   FILE *file;
@@ -90,6 +178,8 @@ int loadstatus(void) {
     struct dhcp_conn_t *conn = 0;
     struct ippoolm_t *newipm = 0;
     int n;
+
+    sanitize_dhcpconn(&dhcpconn);
 
     /* todo: read a md5 checksum or magic token */
 
@@ -157,6 +247,8 @@ int loadstatus(void) {
 
 	if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
 	  struct app_conn_t *aconn = 0;
+
+	  sanitize_appconn(&appconn);
 
 	  if ((c = fgetc(file)) != MARK_NEXT) {
 	    syslog(LOG_ERR, "%s: bad binary file", strerror(errno));
@@ -233,6 +325,8 @@ int loadstatus(void) {
 	syslog(LOG_INFO, "Reading appconn (peer)");
 
 	if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
+
+	  sanitize_appconn(&appconn);
 
 	  if ((c = fgetc(file)) != MARK_NEXT) {
 	    syslog(LOG_ERR, "%s: bad binary file", strerror(errno));
