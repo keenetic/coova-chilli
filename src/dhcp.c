@@ -1553,9 +1553,11 @@ size_t icmpfrag(struct dhcp_conn_t *conn,
   return icmp_full_len;
 }
 
-size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
+size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, size_t orig_len,
+	      char reverse) {
 
-  size_t len = sizeofeth(orig_pack) + PKT_IP_HLEN + PKT_TCP_HLEN;
+  size_t ethlen = sizeofeth(orig_pack);
+  size_t len = ethlen + PKT_IP_HLEN + PKT_TCP_HLEN;
 
   struct pkt_iphdr_t  *orig_pack_iph  = pkt_iphdr(orig_pack);
   struct pkt_tcphdr_t *orig_pack_tcph = pkt_tcphdr(orig_pack);
@@ -1563,9 +1565,19 @@ size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
   struct pkt_iphdr_t *tcp_pack_iph;
   struct pkt_tcphdr_t *tcp_pack_tcph;
 
-  memcpy(tcp_pack, orig_pack, len);
+  /* Only answer packets that carry a whole TCP header */
+  if (iphdr_offset(orig_pack_iph) ||
+      orig_len < sizeofip(orig_pack) + PKT_TCP_HLEN ||
+      ntohs(orig_pack_iph->tot_len) <
+      sizeofip(orig_pack) - ethlen + PKT_TCP_HLEN)
+    return 0;
+
+  /* Copy the headers without any IP options */
+  memcpy(tcp_pack, orig_pack, ethlen + PKT_IP_HLEN);
+  memcpy(tcp_pack + ethlen + PKT_IP_HLEN, orig_pack_tcph, PKT_TCP_HLEN);
 
   tcp_pack_iph = pkt_iphdr(tcp_pack);
+  tcp_pack_iph->version_ihl = PKT_IP_VER_HLEN;
   tcp_pack_tcph = pkt_tcphdr(tcp_pack);
 
   if (reverse) {
@@ -1599,19 +1611,25 @@ size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
 
 #ifdef ENABLE_TCPRESET
 static
-void tun_sendRESET(struct tun_t *tun, uint8_t *pack, struct app_conn_t *appconn) {
+void tun_sendRESET(struct tun_t *tun, uint8_t *pack, size_t len,
+		   struct app_conn_t *appconn) {
 #if !defined(HAVE_NETFILTER_QUEUE) && !defined(HAVE_NETFILTER_COOVA)
   uint8_t tcp_pack[1500];
-  tun_encaps(tun, tcp_pack, tcprst(tcp_pack, pack, 1), appconn->s_params.routeidx);
+  size_t tcp_len = tcprst(tcp_pack, pack, len, 1);
+  if (tcp_len)
+    tun_encaps(tun, tcp_pack, tcp_len, appconn->s_params.routeidx);
 #endif
 }
 
 static
-void dhcp_sendRESET(struct dhcp_conn_t *conn, uint8_t *pack, char reverse) {
+void dhcp_sendRESET(struct dhcp_conn_t *conn, uint8_t *pack, size_t len,
+		    char reverse) {
 #if !defined(HAVE_NETFILTER_QUEUE) && !defined(HAVE_NETFILTER_COOVA)
   uint8_t tcp_pack[1500];
   struct dhcp_t *this = conn->parent;
-  dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, tcp_pack, tcprst(tcp_pack, pack, reverse));
+  size_t tcp_len = tcprst(tcp_pack, pack, len, reverse);
+  if (tcp_len)
+    dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, tcp_pack, tcp_len);
 #endif
 }
 #endif
@@ -2753,7 +2771,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
                ntohs(tcph->src), ntohs(tcph->dst));
 #endif
 
-      dhcp_sendRESET(conn, pack, 1);
+      dhcp_sendRESET(conn, pack, len, 1);
     }
 #endif
   }
@@ -2870,9 +2888,9 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
       syslog(LOG_DEBUG, "%s(%d): Resetting connection on port %d->%d (undo)", __FUNCTION__, __LINE__,
              ntohs(tcph->src), ntohs(tcph->dst));
 #endif
-    dhcp_sendRESET(conn, pack, 0);
+    dhcp_sendRESET(conn, pack, *plen, 0);
     if (conn->peer) {
-      tun_sendRESET(tun, pack, (struct app_conn_t *)conn->peer);
+      tun_sendRESET(tun, pack, *plen, (struct app_conn_t *)conn->peer);
     }
   }
 #endif
