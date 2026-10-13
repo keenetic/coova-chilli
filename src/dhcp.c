@@ -4321,65 +4321,36 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
 #ifdef ENABLE_IPV6
 void check_options(int datalen, uint8_t *data, uint8_t b[256]) {
-  if (datalen > 0) {
-    uint8_t t, l;
-    int i=0;
-    while (datalen > 0) {
-      int dlen = -1;
-      t = data[i++]; datalen--;
-      if (!datalen) break;
-      l = data[i++]; datalen--;
-      if (!datalen) break;
-      switch(t) {
-        case 1: /* source link-layer address */
-        case 2: /* target link-layer address */
-          dlen = l * PKT_ETH_ALEN;
-          break;
-        default:
-          if (_options.debug)
-            syslog(LOG_DEBUG, "%s(%d): could not parse ICMP option", __FUNCTION__, __LINE__);
-          datalen = 0;
-          break;
-      }
-      if (dlen > 0) {
-        if (dlen <= datalen) {
-          if (_options.debug)
-            syslog(LOG_DEBUG, "%s(%d): ICMPv6 Option %d %d %d", __FUNCTION__, __LINE__, (int)t,(int)l,dlen);
-          memcpy(b, data + i, dlen);
-          switch(t) {
-            case 1: /* source link-layer address */
-            case 2: /* target link-layer address */
-              dlen = l * PKT_ETH_ALEN;
-              break;
-            default:
-              if (_options.debug)
-                syslog(LOG_DEBUG, "%s(%d): could not parse ICMP option", __FUNCTION__, __LINE__);
-              datalen = 0;
-              break;
-          }
-          if (dlen > 0) {
-            if (dlen <= datalen) {
-              if (_options.debug)
-                syslog(LOG_DEBUG, "%s(%d): ICMPv6 Option %d %d %d", __FUNCTION__, __LINE__, (int)t,(int)l,dlen);
-              memcpy(b, data + i, dlen);
-              switch(t) {
-                case 1: /* source link-layer address */
-                case 2: /* target link-layer address */
-                  if (_options.debug)
-                    syslog(LOG_DEBUG, "%s(%d): ICMPv6 Source Link-Layer Address Option "MAC_FMT, __FUNCTION__, __LINE__, 
-                           MAC_ARG(b));
-                  break;
-                default:
-                  break;
-              }
-            }
-            
-            i += dlen;
-            datalen -= dlen;
-          }
-        }
-      }
+  /* ND options: type, length in units of 8 octets, value */
+  while (datalen >= 2) {
+    uint8_t t = data[0];
+    int dlen = data[1] * 8;
+
+    if (dlen == 0 || dlen > datalen) {
+      if (_options.debug)
+        syslog(LOG_DEBUG, "%s(%d): could not parse ICMP option", __FUNCTION__, __LINE__);
+      break;
     }
+
+    if (_options.debug)
+      syslog(LOG_DEBUG, "%s(%d): ICMPv6 Option %d %d", __FUNCTION__, __LINE__, (int)t, dlen);
+
+    switch(t) {
+      case 1: /* source link-layer address */
+      case 2: /* target link-layer address */
+        if (dlen >= 2 + PKT_ETH_ALEN) {
+          memcpy(b, data + 2, PKT_ETH_ALEN);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "%s(%d): ICMPv6 Link-Layer Address Option "MAC_FMT, __FUNCTION__, __LINE__,
+                   MAC_ARG(b));
+        }
+        break;
+      default:
+        break;
+    }
+
+    data += dlen;
+    datalen -= dlen;
   }
 }
 
