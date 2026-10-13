@@ -3580,6 +3580,13 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       /* drop through */
 
     case DHCPRELEASE:
+      /* Only the client itself may release its lease */
+      if (memcmp(mac, pack_ethh->src, PKT_ETH_ALEN)) {
+        if (_options.debug)
+          syslog(LOG_DEBUG, "%s(%d): ignoring release of "MAC_FMT" from "MAC_FMT, __FUNCTION__, __LINE__,
+                 MAC_ARG(mac), MAC_ARG(pack_ethh->src));
+        return 0;
+      }
       dhcp_release_mac(this, mac, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
 
     case DHCPDISCOVER:
