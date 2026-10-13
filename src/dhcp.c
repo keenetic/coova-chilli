@@ -5924,10 +5924,12 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   }
 
   if (ntohs(pack_arp->hrd) != 1 ||       /* Ethernet Hardware */
+      ntohs(pack_arp->pro) != PKT_ETH_PROTO_IP || /* IPv4 */
       pack_arp->hln != PKT_ETH_ALEN ||   /* MAC Address Size */
       pack_arp->pln != PKT_IP_ALEN) {    /* IP Address Size */
-    syslog(LOG_ERR, "ARP reject hrd=%d hln=%d pln=%d",
-           ntohs(pack_arp->hrd), pack_arp->hln, pack_arp->pln);
+    syslog(LOG_ERR, "ARP reject hrd=%d pro=0x%.4x hln=%d pln=%d",
+           ntohs(pack_arp->hrd), ntohs(pack_arp->pro),
+           pack_arp->hln, pack_arp->pln);
     return 0;
   }
 
