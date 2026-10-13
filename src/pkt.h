@@ -243,7 +243,9 @@ struct pkt_dhcp6hdr_t {
 struct pkt_ipphdr_t {
   /* Convenience structure:
      Same as pkt_iphdr_t, but also
-     with ports (UDP and TCP packets) */
+     with ports (UDP and TCP packets).
+     The ports follow any IP options, so read
+     them with ipphdr_sport() and ipphdr_dport(). */
   uint8_t  version_ihl;
   uint8_t  tos;
   uint16_t tot_len;
@@ -254,8 +256,6 @@ struct pkt_ipphdr_t {
   uint16_t check;
   uint32_t saddr;
   uint32_t daddr;
-  uint16_t sport;
-  uint16_t dport;
 } __attribute__((packed));
 
 
@@ -505,6 +505,9 @@ struct pkt_chillihdr_t {
 #define pkt_icmphdr(pkt)  ((struct pkt_icmphdr_t *) (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define pkt_udphdr(pkt)   ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define pkt_tcphdr(pkt)   ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
+#define ipphdr_ports(p)   ((struct pkt_udphdr_t *)  (((uint8_t*)(p)) + ((p)->version_ihl & 0xf) * 4))
+#define ipphdr_sport(p)   (ipphdr_ports(p)->src)
+#define ipphdr_dport(p)   (ipphdr_ports(p)->dst)
 #define pkt_dot1xhdr(pkt) ((struct pkt_dot1xhdr_t *)(((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define pkt_dhcppkt(pkt)  ((struct dhcp_packet_t *) (((uint8_t*)(pkt)) + sizeofudp(pkt)))
 #define pkt_arppkt(pkt)   ((struct arp_packet_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))

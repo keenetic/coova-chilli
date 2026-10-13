@@ -2795,9 +2795,9 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   /* If the ip src is uamlisten and psrc is uamport
      we won't call leaky_bucket */
   if ( ! (ipph->saddr  == _options.uamlisten.s_addr &&
-	  (ipph->sport == htons(_options.uamport)
+	  (ipphdr_sport(ipph) == htons(_options.uamport)
 #ifdef ENABLE_UAMUIPORT
-	   || ipph->sport == htons(_options.uamuiport)
+	   || ipphdr_sport(ipph) == htons(_options.uamuiport)
 #endif
 	   ))) {
     if (chilli_acct_tosub(appconn, ipph))
@@ -5746,9 +5746,9 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
    * and we always send these packets through to the tun/tap interface (index 0)
    */
   if (ipph->daddr  == _options.uamlisten.s_addr &&
-      (ipph->dport == htons(_options.uamport)
+      (ipphdr_dport(ipph) == htons(_options.uamport)
 #ifdef ENABLE_UAMUIPORT
-       || ipph->dport == htons(_options.uamuiport)
+       || ipphdr_dport(ipph) == htons(_options.uamuiport)
 #endif
        )) {
     return tun_encaps(tun, pack, len, 0);

@@ -356,7 +356,7 @@ int garden_check(pass_through *ptlist, uint32_t *pcnt,
 	if (pt->port == 0 ||
 	    ((ipph->protocol == PKT_IP_PROTO_TCP ||
 	      ipph->protocol == PKT_IP_PROTO_UDP) &&
-	     (dst ? ipph->dport : ipph->sport) == htons(pt->port))) {
+	     (dst ? ipphdr_dport(ipph) : ipphdr_sport(ipph)) == htons(pt->port))) {
 	  if (pt_match) *pt_match = pt;
 #ifdef ENABLE_GARDENEXT
 	  if (pt->expiry && pt->expiry < mainclock_now()) {
