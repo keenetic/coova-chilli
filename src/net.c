@@ -1715,13 +1715,12 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
 
   /* This may happen if the MTU changes while requests are
    * in flight */
-#if (0)
-  if (length > (unsigned)iface->mtu) {
-    /*drop_request(q);*/
-    syslog(LOG_ERR, "dropping packet len=%d", length);
-    /*return -1;*/
+  if (length > iface->tx_ring.frame_size - iface->tp_hdrlen) {
+    syslog(LOG_ERR, "dropping packet len=%zu, larger than TX frame",
+	   length);
+    ++iface->stats.dropped;
+    return -1;
   }
-#endif
 
   for (cnt = 0; cnt < iface->tx_ring.cnt; ++cnt) {
     h = iface->tx_ring.frames[iface->tx_ring.idx++];
