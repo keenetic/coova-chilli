@@ -4560,7 +4560,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
 	/*
 	 *  Force the assigment of an IP address.
 	 */
-	if (ipm->addr.s_addr != hisip.s_addr) {
+	if (ipm->addr.s_addr != hisip.s_addr && dhcpconn &&
+	    dhcpconn->is_reserved) {
+	  syslog(LOG_WARNING, "Not changing reserved ip address %s",
+		 inet_ntoa(ipm->addr));
+	}
+	else if (ipm->addr.s_addr != hisip.s_addr && dhcpconn) {
 	  uint8_t hwaddr[sizeof(dhcpconn->hismac)];
 	  memcpy(hwaddr, dhcpconn->hismac, sizeof(hwaddr));
 
@@ -4569,8 +4574,13 @@ int cb_radius_auth_conf(struct radius_t *radius,
             syslog(LOG_DEBUG, "%s(%d): Resetting ip address to %s", __FUNCTION__, __LINE__, inet_ntoa(hisip));
           }
 
+	  /* This frees appconn too, continue with the new session */
 	  dhcp_freeconn(dhcpconn, 0);
-	  dhcp_newconn(dhcp, &dhcpconn, hwaddr);
+	  if (dhcp_newconn(dhcp, &dhcpconn, hwaddr) || !dhcpconn->peer) {
+	    syslog(LOG_ERR, "Could not recreate connection for new ip address");
+	    return 0;
+	  }
+	  appconn = (struct app_conn_t *)dhcpconn->peer;
 
 	  appconn->dnprot = DNPROT_MAC;
 	  appconn->authtype = PAP_PASSWORD;
