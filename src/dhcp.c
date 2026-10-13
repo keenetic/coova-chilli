@@ -272,6 +272,10 @@ dhcp_get_appconn_pkt(struct dhcp_conn_t *conn,
       {
         struct in_addr dst;
 
+        /* non-IP packets (ARP, EAPOL) have no address to look up */
+        if (!iph)
+          return 0;
+
         dst.s_addr = ((is_dst) ?
                       iph->daddr :
                       iph->saddr);
