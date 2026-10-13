@@ -5946,6 +5946,17 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     return 0;
   }
 
+  /* Connections are keyed on the sender MAC, so it must be the
+   * unicast address the frame came from */
+  if (memcmp(pack_arp->sha, pack_ethh->src, PKT_ETH_ALEN) ||
+      (pack_arp->sha[0] & 0x01) ||
+      !memcmp(pack_arp->sha, nmac, PKT_ETH_ALEN)) {
+    if (_options.debug)
+      syslog(LOG_DEBUG, "%s(%d): ARP: sender "MAC_FMT" does not match source "MAC_FMT, __FUNCTION__, __LINE__,
+             MAC_ARG(pack_arp->sha), MAC_ARG(pack_ethh->src));
+    return 0;
+  }
+
   /* get sender IP address */
   memcpy(&reqaddr.s_addr, &pack_arp->spa, PKT_IP_ALEN);
 
