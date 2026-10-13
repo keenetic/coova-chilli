@@ -2054,6 +2054,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
       int new_ancount = 0;
       int len = olen - (an_mark - ((uint8_t *)dnsp->records));
 
+      memset(n, 0, sizeof(n));
+
       for (i=0; i < ancount; i++) {
 
 	ssize_t namelen =  dns_fullname((char*)n, sizeof(n)-1,
