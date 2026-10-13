@@ -4387,8 +4387,17 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct dhcp_t *this = ctx->parent;
   struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
   struct pkt_ip6hdr_t *iphdr = pkt_ip6hdr(pack);
-  
-  int ip_datalen = (int) ntohs(iphdr->data_len);
+  size_t hdrlen = sizeofeth(pack) + sizeof(struct pkt_ip6hdr_t);
+  int ip_datalen;
+
+  if (len < hdrlen ||
+      ntohs(iphdr->data_len) > len - hdrlen) {
+    if (_options.debug)
+      syslog(LOG_DEBUG, "%s(%d): dropping truncated IPv6 packet", __FUNCTION__, __LINE__);
+    return 0;
+  }
+
+  ip_datalen = (int) ntohs(iphdr->data_len);
   
   if (_options.debug) {
     syslog(LOG_DEBUG, "%s(%d): Processing IPv6 ver=%d class=%d len=%d datalen=%d", __FUNCTION__, __LINE__,
@@ -4410,6 +4419,9 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
           (struct pkt_icmphdr_t *)
           (((uint8_t *)iphdr) + sizeof(struct pkt_ip6hdr_t));
       
+      if (ip_datalen < sizeof(struct pkt_icmphdr_t))
+        return 0;
+
       check_options(datalen, data, b);
       
       data = ((uint8_t *)icmphdr) + sizeof(struct pkt_icmphdr_t);
@@ -4591,6 +4603,9 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
           uint16_t data_len;
 	  struct pkt_icmphdr_t * packet_icmp = 0;
           
+	  if (datalen < 4 + PKT_IPv6_ALEN)
+	    return 0;
+
 	  data += 4;
 	  datalen -= 4;
           
@@ -4657,7 +4672,9 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
           (struct pkt_udphdr_t *)
           (((uint8_t *)iphdr) + sizeof(struct pkt_ip6hdr_t));
       
-      if (ntohs(udphdr->src) == 546 && ntohs(udphdr->dst) == 547) {
+      if (ip_datalen >= sizeof(struct pkt_udphdr_t) +
+          sizeof(struct pkt_dhcp6hdr_t) &&
+          ntohs(udphdr->src) == 546 && ntohs(udphdr->dst) == 547) {
 	struct pkt_dhcp6hdr_t * dhcp6hdr =
             (struct pkt_dhcp6hdr_t *)
             (((uint8_t *)udphdr) + sizeof(struct pkt_udphdr_t));
