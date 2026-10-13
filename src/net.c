@@ -1673,8 +1673,10 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     if (_options.debug > 100)
       syslog(LOG_DEBUG, "RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
 
-    pkt_buffer_init(&pb, (uint8_t *)data, h->tp_snaplen, h->tp_mac);
-    pb.length = h->tp_len;
+    /* Only tp_snaplen bytes were copied into the frame; tp_len is
+     * the original length on the wire and may be larger. */
+    pkt_buffer_init2(&pb, (uint8_t *)data, h->tp_mac + h->tp_snaplen,
+		     h->tp_mac, h->tp_snaplen);
 
     func(ctx, &pb);
 
