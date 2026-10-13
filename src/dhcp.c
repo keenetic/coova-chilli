@@ -4673,7 +4673,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
             
 	    uint8_t *m;
             
-	    while (optlen > 4) {
+	    while (optlen >= 4) {
 	      uint16_t t, l;
 	      memcpy(&t, opts, 2); opts+=2; optlen-=2;
 	      memcpy(&l, opts, 2); opts+=2; optlen-=2;
@@ -4681,8 +4681,13 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	      l = ntohs(l);
               if (_options.debug)
                 syslog(LOG_DEBUG, "%s(%d): DHCPv6 Option %d %d", __FUNCTION__, __LINE__, t, l);
+	      if (l > optlen)
+		return 0;
 	      switch(t) {
                 case 1: /* Client-Identifier */
+		  /* A DUID is at most 130 bytes (RFC 8415) */
+		  if (l > 130)
+		    return 0;
                   duid = opts;
                   duid_len = l;
                   break;
