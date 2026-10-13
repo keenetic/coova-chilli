@@ -153,8 +153,10 @@ int conn_update_write(struct conn_t *conn) {
 }
 
 int conn_select_update(struct conn_t *conn, select_ctx *sctx) {
-  if (conn->sock) {
-    switch (net_select_read_fd(sctx, conn->sock)) {
+  int sock = conn->sock;
+
+  if (sock) {
+    switch (net_select_read_fd(sctx, sock)) {
       case -1:
         syslog(LOG_DEBUG, "%s(%d): exception", __FUNCTION__, __LINE__);
         conn_finish(conn);
@@ -163,10 +165,13 @@ int conn_select_update(struct conn_t *conn, select_ctx *sctx) {
       case 1:
         if (conn->read_handler)
           conn->read_handler(conn, conn->read_handler_ctx);
+        /* the handler may have finished the connection */
+        if (conn->sock != sock)
+          return -1;
         break;
     }
 
-    if (net_select_write_fd(sctx, conn->sock)==1)
+    if (net_select_write_fd(sctx, sock)==1)
       conn_update_write(conn);
   }
 
@@ -174,19 +179,24 @@ int conn_select_update(struct conn_t *conn, select_ctx *sctx) {
 }
 
 int conn_update(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e) {
+  int sock = conn->sock;
 
-  if (conn->sock) {
-    if (FD_ISSET(conn->sock, r)) {
+  if (sock) {
+    if (FD_ISSET(sock, r)) {
       if (conn->read_handler) {
 	conn->read_handler(conn, conn->read_handler_ctx);
       }
+      /* the handler may have finished the connection */
+      if (conn->sock != sock)
+	return 0;
     }
 
-    if (FD_ISSET(conn->sock, w)) {
-      conn_update_write(conn);
+    if (FD_ISSET(sock, w)) {
+      if (conn_update_write(conn) < 0)
+	return 0;
     }
 
-    if (FD_ISSET(conn->sock, e)) {
+    if (FD_ISSET(sock, e)) {
 #if(_debug_)
       syslog(LOG_DEBUG, "%s(%d): socket exception!", __FUNCTION__, __LINE__);
 #endif
