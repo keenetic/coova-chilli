@@ -398,6 +398,12 @@ int net_select_reg(select_ctx *sctx, int fd, char evts,
   if (!evts) return -3;
   if (fd <= 0) return -2;
   if (sctx->count == MAX_SELECT) return -1;
+#if !defined(USING_POLL)
+  if (fd >= FD_SETSIZE) {
+    syslog(LOG_ERR, "fd %d too large for select()", fd);
+    return -1;
+  }
+#endif
   sctx->desc[sctx->count].fd = fd;
   sctx->desc[sctx->count].cb = cb;
   sctx->desc[sctx->count].ctx = ctx;
@@ -505,7 +511,11 @@ int net_select_fd(select_ctx *sctx, int fd, char evts) {
   if (fd <= 0) return -2;
 #ifdef USING_POLL
 #ifdef HAVE_SYS_EPOLL_H
+  /* The fd is watched through net_select_addfd(); count only bounds
+   * the scan of the returned events. */
+  if (sctx->count == MAX_SELECT) return 0;
 #else
+  if (sctx->count == MAX_SELECT) return -1;
   sctx->pfds[sctx->count].fd = fd;
   sctx->pfds[sctx->count].events = 0;
   if (evts & SELECT_READ)
@@ -514,6 +524,10 @@ int net_select_fd(select_ctx *sctx, int fd, char evts) {
     sctx->pfds[sctx->count].events |= POLLOUT;
 #endif
 #else
+  if (fd >= FD_SETSIZE) {
+    syslog(LOG_ERR, "fd %d too large for select()", fd);
+    return -1;
+  }
   if (evts & SELECT_READ) {
     fd_set(fd, &sctx->rfds);
     fd_set(fd, &sctx->efds);
@@ -524,6 +538,8 @@ int net_select_fd(select_ctx *sctx, int fd, char evts) {
   if (fd > sctx->maxfd) {
     sctx->maxfd = fd;
   }
+  /* count is the number of desc[] entries, which this fd is not */
+  return 0;
 #endif
   sctx->count++;
   return 0;

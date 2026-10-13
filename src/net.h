@@ -337,8 +337,8 @@ int net_close(net_interface *netif);
 */
 
 #define fd_zero(fds)       FD_ZERO((fds));
-#define fd_set(fd,fds)     if ((fd) > 0) FD_SET((fd), (fds))
-#define fd_isset(fd,fds)   ((fd) > 0) && FD_ISSET((fd), (fds))
+#define fd_set(fd,fds)     if ((fd) > 0 && (fd) < FD_SETSIZE) FD_SET((fd), (fds))
+#define fd_isset(fd,fds)   ((fd) > 0 && (fd) < FD_SETSIZE && FD_ISSET((fd), (fds)))
 #define fd_max(fd,max)     (max) = (max) > (fd) ? (max) : (fd)
 
 #define net_add_route(dst,gw,mask) net_route(dst,gw,mask,0)
