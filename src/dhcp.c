@@ -917,7 +917,7 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
     if (!dhcp_hashget(dhcp, &conn, hw->hw_addr)) {
       struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-      if (appconn->s_state.authenticated) {
+      if (appconn && appconn->s_state.authenticated) {
 	if (chilli_acct_fromsub(appconn, pack_iph))
 	  result = NF_DROP;
 	else
