@@ -338,6 +338,9 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 #endif
       required = 1;
 
+      /* the loops below read the addresses 4 bytes at a time */
+      if (rdlen != 4) return_error;
+
 #ifdef ENABLE_MDNS
       if (mode == DNS_MDNS_MODE) {
         size_t offset;
