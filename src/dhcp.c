@@ -5168,6 +5168,7 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 static
 void update_peer(struct pkt_chillihdr_t *chillihdr) {
   struct chilli_peer *p = get_chilli_peer(chillihdr->from);
+  if (!p) return;
   p->last_update = mainclock_now();
   memcpy(&p->addr, &chillihdr->addr, sizeof(struct in_addr));
   memcpy(p->mac, chillihdr->mac, PKT_ETH_ALEN);
@@ -5193,6 +5194,10 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 
   int olen = 0;
   int tlen = 0;
+
+  /* Leave room for a cipher block of output */
+  if (n <= 0 || n > sizeof(out) - 8)
+    return 0;
 
   if (_options.peerkey == 0)
     _options.peerkey = "hello!";
