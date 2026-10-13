@@ -30,25 +30,27 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
   server.sin_port = htons(port);
   server.sin_addr.s_addr = addr->s_addr;
 
-  if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) > 0) {
+  if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+    syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
+    return -1;
+  }
 
 #if(_debug_)
-    /*log_dbg("SETTING non-blocking");*/
+  /*log_dbg("SETTING non-blocking");*/
 #endif
 
-    if (ndelay_on(sock) < 0) {
-      syslog(LOG_ERR, "%s: could not set non-blocking", strerror(errno));
-    }
+  if (ndelay_on(sock) < 0) {
+    syslog(LOG_ERR, "%s: could not set non-blocking", strerror(errno));
+  }
 
-    if (safe_connect(sock,
-		     (struct sockaddr *) &server,
-		     sizeof(server)) < 0) {
-      if (errno != EINPROGRESS) {
-	syslog(LOG_ERR, "%d could not connect to %s:%d",
-               errno, inet_ntoa(server.sin_addr), port);
-	close(sock);
-	return -1;
-      }
+  if (safe_connect(sock,
+		   (struct sockaddr *) &server,
+		   sizeof(server)) < 0) {
+    if (errno != EINPROGRESS) {
+      syslog(LOG_ERR, "%d could not connect to %s:%d",
+             errno, inet_ntoa(server.sin_addr), port);
+      close(sock);
+      return -1;
     }
   }
 
