@@ -1812,7 +1812,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
     for (i=0; dlen && i < n ## count; i++) {                    \
       if (dns_copy_res(conn, isq, &dptr, &dlen,                 \
 		       (uint8_t *)dnsp, olen,                   \
-		       q, sizeof(q), isReq,                     \
+		       q, sizeof(q) - 1, isReq,                 \
 		       &qmatch, &mod, mode)) {                  \
         syslog(LOG_WARNING, "dropping malformed DNS");		\
 	return isReq ? dhcp_nakDNS(conn,pack,*plen) : 0;        \
