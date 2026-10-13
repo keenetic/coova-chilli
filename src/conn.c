@@ -207,12 +207,26 @@ int conn_update(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e) {
   return 0;
 }
 
+/* responses of this size or more are dropped */
+#define CONN_BSTRING_MAX 4096
+
 static int
 _conn_bstring_readhandler(struct conn_t *conn, void *ctx) {
   bstring data = (bstring)ctx;
-  int ret;
+  int ret, size;
 
-  if (ballocmin(data, data->slen + 128) != BSTR_OK) {
+  if (data->slen >= CONN_BSTRING_MAX) {
+    syslog(LOG_WARNING, "%s(%d): response too large", __FUNCTION__, __LINE__);
+    btrunc(data, 0);
+    conn_finish(conn);
+    return -1;
+  }
+
+  size = data->slen + 128;
+  if (size > CONN_BSTRING_MAX + 1)
+    size = CONN_BSTRING_MAX + 1;
+
+  if (ballocmin(data, size) != BSTR_OK) {
     syslog(LOG_ERR, "%s(%d): out of memory", __FUNCTION__, __LINE__);
     conn_finish(conn);
     return -1;
@@ -221,7 +235,7 @@ _conn_bstring_readhandler(struct conn_t *conn, void *ctx) {
   /* leave room for the terminating NUL */
   ret = safe_read(conn->sock,
 		  data->data + data->slen,
-		  data->mlen - data->slen - 1);
+		  size - data->slen - 1);
 
   if (ret > 0) {
 #if(_debug_)
@@ -229,6 +243,13 @@ _conn_bstring_readhandler(struct conn_t *conn, void *ctx) {
 #endif
     data->slen += ret;
     data->data[data->slen] = 0;
+
+    if (data->slen >= CONN_BSTRING_MAX) {
+      syslog(LOG_WARNING, "%s(%d): response too large", __FUNCTION__, __LINE__);
+      btrunc(data, 0);
+      conn_finish(conn);
+      return -1;
+    }
   } else {
 #if(_debug_)
     syslog(LOG_DEBUG, "%s(%d): socket closed!", __FUNCTION__, __LINE__);
