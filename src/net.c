@@ -276,6 +276,18 @@ int net_close(net_interface *netif) {
   if (netif->pd) pcap_close(netif->pd);
   netif->pd = 0;
 #endif
+#ifdef USING_MMAP
+  /* The mapping holds a reference to the socket, so unmap it or the
+   * socket outlives close() */
+  if (netif->ring_ptr)
+    munmap(netif->ring_ptr, netif->ring_len);
+  netif->ring_ptr = NULL;
+  netif->ring_len = 0;
+  free(netif->rx_ring.frames);
+  free(netif->tx_ring.frames);
+  memset(&netif->rx_ring, 0, sizeof(netif->rx_ring));
+  memset(&netif->tx_ring, 0, sizeof(netif->tx_ring));
+#endif
   if (netif->fd) close(netif->fd);
   netif->fd = 0;
   return 0;
