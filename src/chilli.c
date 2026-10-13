@@ -2691,10 +2691,21 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
    */
   switch(ipph->protocol) {
     case PKT_IP_PROTO_GRE:
-    case PKT_IP_PROTO_TCP:
     case PKT_IP_PROTO_ICMP:
     case PKT_IP_PROTO_ESP:
     case PKT_IP_PROTO_AH:
+      break;
+    case PKT_IP_PROTO_TCP:
+      /*
+       * Only the first IP fragment has the TCP header.
+       */
+      if (iphdr_offset((struct pkt_iphdr_t*)ipph) == 0 &&
+          ntohs(ipph->tot_len) < hlen + PKT_TCP_HLEN) {
+        if (_options.debug)
+          syslog(LOG_DEBUG, "%s(%d): invalid TCP packet %d", __FUNCTION__, __LINE__,
+                 ntohs(ipph->tot_len));
+        return 0;
+      }
       break;
     case PKT_IP_PROTO_UDP:
       {
@@ -2702,6 +2713,12 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
          * Only the first IP fragment has the UDP header.
          */
         if (iphdr_offset((struct pkt_iphdr_t*)ipph) == 0) {
+          if (ntohs(ipph->tot_len) < hlen + PKT_UDP_HLEN) {
+            if (_options.debug)
+              syslog(LOG_DEBUG, "%s(%d): invalid UDP packet %d", __FUNCTION__, __LINE__,
+                     ntohs(ipph->tot_len));
+            return 0;
+          }
           udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
         }
         if (udph && !iphdr_more_frag((struct pkt_iphdr_t*)ipph) &&
