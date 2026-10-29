@@ -208,11 +208,6 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     return err;
   }
 #else
-  syslog(LOG_DEBUG, "%s(%d): MatrixSSL Setup:", __FUNCTION__, __LINE__);
-  syslog(LOG_DEBUG, "%s(%d): SSL cert: %s", __FUNCTION__, __LINE__, _options.sslcertfile);
-  syslog(LOG_DEBUG, "%s(%d): SSL key: %s", __FUNCTION__, __LINE__, _options.sslkeyfile);
-  syslog(LOG_DEBUG, "%s(%d): SSL pass: %s", __FUNCTION__, __LINE__, _options.sslkeypass?_options.sslkeypass:"null");
-  syslog(LOG_DEBUG, "%s(%d): SSL ca: %s", __FUNCTION__, __LINE__, _options.sslcafile?_options.sslcafile:"null");
   if ( matrixSslReadKeys( &env->keys,
 			  _options.sslcertfile,
 			  _options.sslkeyfile,

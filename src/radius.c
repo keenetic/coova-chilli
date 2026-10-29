@@ -1135,10 +1135,6 @@ int radius_pwdecode(struct radius_t *this,
   MD5_CTX context;
   unsigned char output[RADIUS_MD5LEN];
 
-#if(_debug_ > 1)
-  syslog(LOG_DEBUG, "pw decode secret=%s", secret);
-#endif
-
   if (srclen > dstsize) {
     syslog(LOG_ERR, "radius_pwdecode srclen larger than dstsize");
     return -1;
@@ -1221,10 +1217,6 @@ int radius_pwencode(struct radius_t *this,
   unsigned char output[RADIUS_MD5LEN];
   MD5_CTX context;
   size_t i, n;
-
-#if(_debug_ > 1)
-  syslog(LOG_DEBUG, "pw encode secret=%s", secret);
-#endif
 
   memset(dst, 0, dstsize);
 

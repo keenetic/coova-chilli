@@ -1188,8 +1188,6 @@ void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn,
       if (conn->authdata.type == REDIR_AUTH_EAP) {
         if (!base64encoder(&(conn->authdata.v.eapmsg),
                            eap64str, MAX_EAP_LEN*2)){
-          if (_options.debug)
-            syslog(LOG_DEBUG, "%s(%d): Encoded radius eap msg: %s", __FUNCTION__, __LINE__, eap64str);
           bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
           bconcat(b, bt);
         } else {
@@ -2204,11 +2202,6 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    *p2 = 0;
 
 	    strlcpy(httpreq->qs, p1, sizeof(httpreq->qs));
-
-#if(_debug_ > 1)
-            if (_options.debug)
-              syslog(LOG_DEBUG, "%s(%d): Query string: %s", __FUNCTION__, __LINE__, httpreq->qs);
-#endif
 	  }
 	}
       } else if (linelen == 0) {
@@ -2275,10 +2268,6 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  p = buffer + 7;
 	  while (*p && isspace((int) *p)) p++;
 	  strlcpy(conn->httpcookie, p, sizeof(conn->httpcookie));
-#if(_debug_ > 1)
-          if (_options.debug)
-            syslog(LOG_DEBUG, "%s(%d): Cookie: %s", __FUNCTION__, __LINE__, conn->httpcookie);
-#endif
 	}
 	else if (!strncasecmp(buffer,"Content-Type:",13)) {
 	  p = buffer + 13;
@@ -2472,9 +2461,6 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
               bytetohex(conn->authdata.v.eapmsg.data,
                         conn->authdata.v.eapmsg.len, buffer,
                         conn->authdata.v.eapmsg.len*2+1);
-              if (_options.debug)
-                syslog(LOG_DEBUG, "%s(%d): decoded eap message from WISPr request (%d): %s", __FUNCTION__, __LINE__,
-                       conn->authdata.v.eapmsg.len, buffer);
             }
 
             conn->authdata.type = REDIR_AUTH_EAP;
@@ -2603,8 +2589,6 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     if (_options.debug) {
       char buffer[conn->s_state.redir.classlen*2+1];
       bytetohex(conn->s_state.redir.classbuf,conn->s_state.redir.classlen,buffer, conn->s_state.redir.classlen*2+1);
-      if (_options.debug)
-        syslog(LOG_DEBUG, "%s(%d): +attribute Class (%zu bytes): %s", __FUNCTION__, __LINE__, conn->s_state.redir.classlen, buffer);
     }
   } else {
     conn->s_state.redir.classlen = 0;
@@ -2617,8 +2601,6 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     if (_options.debug){
       char buffer[conn->s_state.redir.cuilen*2+1];
       bytetohex(conn->s_state.redir.cuibuf,conn->s_state.redir.cuilen,buffer, conn->s_state.redir.cuilen*2+1);
-      if (_options.debug)
-        syslog(LOG_DEBUG, "%s(%d): +attribute CUI (%zu bytes): %s", __FUNCTION__, __LINE__, conn->s_state.redir.cuilen, buffer);
     }
   } else {
     conn->s_state.redir.cuilen = 0;
@@ -2662,8 +2644,6 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     bytetohex(conn->authdata.v.eapmsg.data,
 	      conn->authdata.v.eapmsg.len,buffer,
 	      conn->authdata.v.eapmsg.len*2+1);
-    syslog(LOG_DEBUG, "%s(%d): +attribute EAP msg (%d bytes): %s", __FUNCTION__, __LINE__,
-           conn->authdata.v.eapmsg.len, buffer);
   }
 
   /* Get sendkey */
@@ -2683,11 +2663,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 			    pack_req->authenticator, radius->secret,
 			    radius->secretlen) != 0) {
 	bytetosphex(dstbuffer, dstlen, hexString, sizeof(hexString));
-        if (_options.debug)
-          syslog(LOG_DEBUG, "%s(%d): plainstring MPPE_SEND_KEY: len %zu key %s", __FUNCTION__, __LINE__, dstlen, hexString);
       } else {
-        if (_options.debug)
-          syslog(LOG_DEBUG, "%s(%d): received radius MPPE_SEND_KEY attribute (%d bytes): %s", __FUNCTION__, __LINE__, attr->l, hexString);
 	syslog(LOG_ERR, "Decryption of MPPE_SEND_KEY failed");
       }
     }
@@ -2703,11 +2679,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 			    pack_req->authenticator, radius->secret,
 			    radius->secretlen) != 0) {
 	bytetosphex(dstbuffer, dstlen, hexString, sizeof(hexString));
-        if (_options.debug)
-          syslog(LOG_DEBUG, "%s(%d): plainstring MPPE_RECV_KEY: len %zu key %s", __FUNCTION__, __LINE__, dstlen, hexString);
       } else {
-        if (_options.debug)
-          syslog(LOG_DEBUG, "%s(%d): received radius MPPE_RECV_KEY attribute (%d bytes): %s", __FUNCTION__, __LINE__, attr->l, hexString);
 	syslog(LOG_ERR, "Decryption of MPPE_RECV_KEY failed");
       }
     }
@@ -2824,10 +2796,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       }
       user_password[conn->authdata.v.papmsg.len] = 0;
 
-      if (_options.debug)
-        syslog(LOG_DEBUG, "%s(%d): User password %d [%s]", __FUNCTION__, __LINE__,
-               conn->authdata.v.papmsg.len, user_password);
-
 #ifdef HAVE_OPENSSL
       if (_options.mschapv2) {
         uint8_t response[50];
@@ -2913,9 +2881,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
           bytetohex(conn->authdata.v.eapmsg.data,
                     conn->authdata.v.eapmsg.len,buffer,
                     conn->authdata.v.eapmsg.len*2+1);
-          if (_options.debug)
-            syslog(LOG_DEBUG, "%s(%d): +attribute EAP msg (%d bytes): %s", __FUNCTION__, __LINE__,
-                   conn->authdata.v.eapmsg.len, buffer);
         }
       }
       break;
@@ -3021,8 +2986,6 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   if (_options.debug) {/*debug*/
     char buffer[64];
     redir_chartohex(conn->s_state.redir.uamchal, buffer, REDIR_MD5LEN);
-    if (_options.debug)
-      syslog(LOG_DEBUG, "%s(%d): challenge: %s", __FUNCTION__, __LINE__, buffer);
   }/**/
 
   if (redir->secret && *redir->secret) {
@@ -3038,8 +3001,6 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   if (_options.debug) {/*debug*/
     char buffer[64];
     redir_chartohex(chap_challenge, buffer, REDIR_MD5LEN);
-    if (_options.debug)
-      syslog(LOG_DEBUG, "%s(%d): chap challenge: %s", __FUNCTION__, __LINE__, buffer);
   }/**/
 
   switch (conn->authdata.type){
@@ -3399,8 +3360,6 @@ do { \
   redir_chartohex(challenge, hexchal, REDIR_MD5LEN);                    \
   msg.mtype = msgtype;                                                  \
   memcpy(conn.s_state.redir.uamchal, challenge, REDIR_MD5LEN);          \
-  if (_options.debug)							\
-    syslog(LOG_DEBUG, "%s(%d): ---->>> resetting challenge: %s", __FUNCTION__, __LINE__, hexchal); \
 } while (0)
 
 #ifdef USING_IPC_UNIX
@@ -4363,11 +4322,6 @@ do { \
     msg.mtype = splash ? REDIR_ALREADY : REDIR_NOTYET;
     redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
-
-#if(_debug_ > 1)
-  if (_options.debug)
-    syslog(LOG_DEBUG, "%s(%d): ---->>> challenge: %s", __FUNCTION__, __LINE__, hexchal);
-#endif
 
   if (_options.macreauth && !conn.s_state.authenticated) {
     msg.mtype = REDIR_MACREAUTH;

@@ -223,9 +223,6 @@ static int http_aaa_finish(proxy_request *req) {
 #endif
 
   if (req->data && req->data->slen >= 7) {
-#if(_debug_)
-    syslog(LOG_DEBUG, "Received: %s\n",req->data->data);
-#endif
     req->authorized = !memcmp(req->data->data, "Auth: 1", 7);
     req->challenge = !memcmp(req->data->data, "Auth: 2", 7);
   }
@@ -376,9 +373,6 @@ static int http_aaa_finish(proxy_request *req) {
                     offset += eaplen;
                   }
 
-#if(_debug_)
-                  syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
-#endif
                   bdestroy(tmp);
                   bdestroy(tmp2);
                 }
@@ -482,9 +476,6 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
       curl_easy_setopt(curl, CURLOPT_SSLKEY, key);
       curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
       if (keypwd && strlen(keypwd)) {
-#if(_debug_)
-	syslog(LOG_DEBUG, "using key pwd [%s]",keypwd);
-#endif
 #ifdef CURLOPT_SSLCERTPASSWD
 	curl_easy_setopt(curl, CURLOPT_SSLCERTPASSWD, keypwd);
 #else
@@ -700,16 +691,8 @@ static void http_aaa_register(int argc, char **argv, int i) {
 
   if (http_aaa_setup(0, &req) == 0) {
 
-#if(_debug_ > 1)
-    syslog(LOG_DEBUG, "==> %s\npost:%s", req.url->data, req.post->data);
-#endif
-
 #ifdef USING_CURL
     curl_easy_perform(req.curl);
-#endif
-
-#if(_debug_ > 1)
-    syslog(LOG_DEBUG, "<== %s", req.data->data);
 #endif
 
 #ifdef USING_CURL
@@ -1052,9 +1035,6 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     if (_options.uamsecret && _options.uamsecret[0])
       redir_md_param(req->url, _options.uamsecret, "&");
 
-#if(_debug_ > 1)
-    syslog(LOG_DEBUG, "==> %s", req->url->data);
-#endif
     if (http_aaa(radius, req) < 0)
       close_request(req);
 

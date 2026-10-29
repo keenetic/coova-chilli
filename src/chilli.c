@@ -3613,10 +3613,6 @@ int access_request(struct radius_packet_t *pack,
       return -1;
     }
     pwd[pwdlen] = 0; /* pwdlen <= 240 < RADIUS_ATTR_VLEN */
-#if(_debug_)
-    if (_options.debug)
-      syslog(LOG_DEBUG, "%s(%d): Password is: %s", __FUNCTION__, __LINE__, pwd);
-#endif
   }
 
   /* Get EAP message */

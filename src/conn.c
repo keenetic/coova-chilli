@@ -253,7 +253,6 @@ _conn_bstring_readhandler(struct conn_t *conn, void *ctx) {
   } else {
 #if(_debug_)
     syslog(LOG_DEBUG, "%s(%d): socket closed!", __FUNCTION__, __LINE__);
-    syslog(LOG_DEBUG, "%s(%d): <== [%s]", __FUNCTION__, __LINE__, data->data);
 #endif
     conn_finish(conn);
   }

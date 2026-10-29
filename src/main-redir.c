@@ -449,9 +449,6 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	      }
 	    }
 
-	    syslog(LOG_DEBUG, "Resp Header [%d] %.*s%s",
-                   l, l, hdr, skip ? " [Skipped]" : "");
-
 	    if (!skip) {
 	      bcatblk(newhdr, hdr, l + 2);
 	    }
@@ -508,10 +505,6 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 static int
 check_regex(regex_t *re, char *regex, char *s) {
   int ret;
-
-#if(_debug_)
-  syslog(LOG_DEBUG, "Checking %s =~ %s", s, regex);
-#endif
 
   if ((ret = regcomp(re, regex, REG_EXTENDED | REG_NOSUB)) != 0) {
     char error[512];
